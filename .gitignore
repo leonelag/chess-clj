@@ -1,0 +1,12 @@
+/chess1/target
+/chess1/lib
+/chess1/classes
+/chess1/checkouts
+/chess1/pom.xml
+/chess1/pom.xml.asc
+/chess1/*.jar
+/chess1/*.class
+/chess1/.lein-deps-sum
+/chess1/.lein-failures
+/chess1/.lein-plugins
+/chess1/.lein-repl-history
