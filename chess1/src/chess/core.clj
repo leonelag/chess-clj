@@ -2,6 +2,38 @@
   (:gen-class)
   (:require [clojure.string :as str]))
 
+(defn file
+  "Whether a character denotes a file (think 'column') on the chess board. Files
+ range from lower case 'a' (white player's leftmost) to 'h' (white player's
+ rightmost).
+
+   Returns the index of the rank when the board is a seq of seqs."
+  [ch]
+  (let [i (.indexOf "abcdefgh" (str ch))]
+    (if (>= i 0)
+      i)))
+
+(defn rank
+  "Whether a character denotes a rank (think 'row') on the chess board.
+Ranks range from '1' (closest to white player) to '8' (furthest from white
+player.)
+
+   Returns the char itself or nil if it's not a rank."
+  [ch]
+  (let [i (.indexOf "12345678" (str ch))]
+    (if (>= i 0)
+      (- 7 i))))
+
+(defn piece-at
+  "The piece at a rank and file on the board.
+
+   The order of the parameters is (file,rank) as per the Standard Algebraic Notation, for instance, E8.
+   Rank and file should be integers in the range [0..7]."
+  [board file rank]
+  (-> board
+      (nth rank)
+      (nth file)))
+
 (def pieces
   {\K :king
    \Q :queen
@@ -33,15 +65,15 @@
     (map #(map piece %)
          xs)))
 
-(defn- print-board
+(defn print-board
   "Prints to stdout the board as seen by the white player."
   [board]
-  (doseq [file board]
+  (doseq [rank board]
     (println (str/join (map (fn [piece]
                               (if (nil? piece)
                                 "."
                                 (:str piece)))
-                            file)))))
+                            rank)))))
 
 (def board
   "The state of a chess board at the beginning of a match."
@@ -71,14 +103,27 @@
   (.readLine *in*))
 
 (defn- parse-move
-  ""
+  "Parses a move command according to the Standard Algebraic Notation."
+  ; FIXME: finish me
   [s]
+  (cond
+   ;; pawn move
+   (and (file (first s))
+        (rank (second s)))
+   {:piece :pawn
+    :to    [(file (first s))
+            (rank (second s))]}
+
+   ;; piece move
+   ) 
+  
   )
 
 (defn- move
   "Updates the game with the move performed by the player."
 ;  [game mv]
-;  (let [b (:board game)])
+                                        ;  (let [b (:board game)])
+  ; FIXME: finish me
   []
   )
 
@@ -87,6 +132,7 @@
 (defn -main
   "Starts a game of chess, alternately asking for players' moves on the command
   line."
+  ; FIXME: finish me
   [& args]
   ;; work around dangerous default behaviour in Clojure
   (alter-var-root #'*read-eval* (constantly false))
