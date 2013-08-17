@@ -102,22 +102,70 @@ player.)
   (println (str player " player, your move ?"))
   (.readLine *in*))
 
-(defn- parse-move
-  "Parses a move command according to the Standard Algebraic Notation."
-  ; FIXME: finish me
-  [s]
-  (cond
-   ;; pawn move
-   (and (file (first s))
-        (rank (second s)))
-   {:piece :pawn
-    :to    [(file (first s))
-            (rank (second s))]}
+(defn parse-move
+  "Parses a move command according to the Standard Algebraic Notation or coordinate notation
 
-   ;; piece move
-   ) 
-  
-  )
+   Example of valid moves:
+   e4
+   Bc6
+   Nxf6
+   O-O
+   e2g4"
+  [s]
+  (let [re-pawn      #"([a-h])([1-8])"
+        re-pawn-cap  #"([a-h])x([a-h])([1-8])(\(ep\))?"
+        re-piece     #"([BKNR])([a-h]?)(x?)([a-h])([1-8])"
+        re-coord     #"([a-h])([1-8])([a-h])([1-8])"]
+    
+    (cond
+     ;; pawn moves
+     (re-matches re-pawn s)
+     (let [[_ f r] (first (re-seq re-pawn s))]
+       {:piece :pawn
+        :to [(file (.charAt f 0))
+             (rank (.charAt r 0))]})
+
+     ;; pawn captures
+     (re-matches re-pawn-cap s)
+     (let [[_ from-file f r ep?] (first (re-seq re-pawn-cap s))]
+       {:piece :pawn
+        :to [(file (.charAt f 0))
+             (rank (.charAt r 0))]
+        :ep  (boolean ep?)
+        :cap true
+        :from-file (if from-file (file (.charAt from-file 0)))})
+
+     ;; piece moves or captures
+     (re-matches re-piece s)
+     (let [[_ p from-file cap? f r] (first (re-seq re-piece s))]
+       {:piece (pieces p)
+        :to [(file (.charAt f 0))
+             (rank (.charAt r 0))]
+        :cap (boolean cap?)
+        :from-file (if from-file (file (.charAt from-file 0)))})
+
+     ;; coordinate notation
+     (re-matches re-coord s)
+     (let [[_ f1 r1 f2 r2] (first (re-seq re-coord s))]
+       {:from [(file (.charAt f1 0))
+               (rank (.charAt r1 0))]
+        :to [(file (.charAt f2 0))
+             (rank (.charAt r2 0))]})
+     
+     ;; castle with king's rook
+     (= "O-O" s)
+     {:piece  :king
+      :castle :king}
+
+     ;; castle with queen's rook
+     (= "O-O-O" s)
+     {:piece  :king
+      :castle :queen}
+
+     ;; default
+     :else
+     {:invalid true})))
+
 
 (defn- move
   "Updates the game with the move performed by the player."

@@ -64,3 +64,31 @@
                          "PPPPPPPP"
                          "RNBQKBNR"]
                         (repeat \newline)))))))
+
+(deftest test-parse-move-pawns
+  (testing "Testing parse-move for valid moves of pawns."
+    (let [mv (parse-move "e5")]
+      (is (= :pawn
+             (:piece mv)))
+      (is (= [(file \e) (rank \5)]
+             (:to mv)))
+      (is (not (:ep mv)))
+      (is (not (:cap mv))))
+    (let [mv (parse-move "exd4")]
+      (is (= :pawn
+             (:piece mv)))
+      (is (= [(file \d) (rank \4)]
+             (:to mv)))
+      (is (= (file \e)
+             (:from-file mv)))
+      (is (not (:ep mv)))
+      (is (:cap mv)))
+    (let [mv (parse-move "exd4(ep)")]
+      (is (= :pawn
+             (:piece mv)))
+      (is (= [(file \d) (rank \4)]
+             (:to mv)))
+      (is (= (file \e)
+             (:from-file mv)))
+      (is (:ep mv))
+      (is (:cap mv)))))
