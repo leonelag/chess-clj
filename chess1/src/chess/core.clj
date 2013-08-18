@@ -24,15 +24,26 @@ player.)
     (if (>= i 0)
       (- 7 i))))
 
+(defn parse-square
+  "Parses the coordinates for a square into a seq [file rank], suitable for
+  indexing the board."
+  [s]
+  [(file (.charAt s 0))
+   (rank (.charAt s 1))])
+
 (defn piece-at
   "The piece at a rank and file on the board.
 
    The order of the parameters is (file,rank) as per the Standard Algebraic Notation, for instance, E8.
    Rank and file should be integers in the range [0..7]."
-  [board file rank]
-  (-> board
-      (nth rank)
-      (nth file)))
+  ([board ^String square]
+     (let [f (file (.charAt square 0))
+           r (rank (.charAt square 1))]
+       (piece-at board f r)))
+  ([board file rank]
+     (-> board
+         (nth rank)
+         (nth file))))
 
 (def pieces
   {\K :king
@@ -41,6 +52,13 @@ player.)
    \B :bishop
    \R :rook
    \P :pawn})
+
+(defn other-player
+  "The color of the adversary of the parameter player."
+  [player]
+  (case player
+    :white :black
+    :black :white))
 
 (defn parse-board
   "Parse a board from a seq of strings.
@@ -77,7 +95,7 @@ player.)
 
 (def board
   "The state of a chess board at the beginning of a match."
-  (parse-board ["rnbqkbnr" 
+  (parse-board ["rnbqkbnr"
                 "pppppppp"
                 "........"
                 "........"
@@ -86,6 +104,15 @@ player.)
                 "PPPPPPPP"
                 "RNBQKBNR"]))
 
+(defn square-check?
+  "Whether a square is in check by a piece of informed player."
+  [board player sq]
+  ;; TODO - Finish me.
+  
+
+  
+  )
+
 (defn- new-game
   "Creates a new match of chess.
 
@@ -93,7 +120,9 @@ player.)
    about to move and the state of the chess board."
   []
   {:board board
-   :current-player :white})
+   :current-player :white
+   :king-moved     #{}
+   :rook-moved     #{}})
 
 (defn- prompt-move
   "Prints a message to stdout asking for the player's move, reads and returns a
@@ -116,7 +145,6 @@ player.)
         re-pawn-cap  #"([a-h])x([a-h])([1-8])(\(ep\))?"
         re-piece     #"([BKNR])([a-h]?)(x?)([a-h])([1-8])"
         re-coord     #"([a-h])([1-8])([a-h])([1-8])"]
-    
     (cond
      ;; pawn moves
      (re-matches re-pawn s)
@@ -151,20 +179,22 @@ player.)
                (rank (.charAt r1 0))]
         :to [(file (.charAt f2 0))
              (rank (.charAt r2 0))]})
-     
+
      ;; castle with king's rook
-     (= "O-O" s)
+     (= "0-0" s)
      {:piece  :king
       :castle :king}
 
      ;; castle with queen's rook
-     (= "O-O-O" s)
+     (= "0-0-0" s)
      {:piece  :king
       :castle :queen}
 
      ;; default
      :else
-     {:invalid true})))
+     {:invalid     true
+      :parse-error true
+      :input       s})))
 
 
 (defn- move
@@ -175,7 +205,73 @@ player.)
   []
   )
 
-(defn eval-move [])
+(defn invalid-castle?
+  "Whether the move is a castle which violates the castling rules.
+
+   Returns a string explaining the violated castling rule,
+   or nil if the castling is valid."
+  [mv game]
+  (let [board (:board game)
+        player (:current-player game)
+        other (other-player player)
+        castle (:castle mv)]
+    (cond
+     (contains? (:king-moved game)
+                player)
+     "King moved earlier in the game."
+
+     (contains? (:rook-moved game)
+                [player (:castle mv)])
+     "Rook moved earlier in the game."
+
+     (let [sq (case player
+                   :white "e1"
+                   :black "e8")]
+       (square-check? board
+                      other-player
+                      sq))
+     "The king is in check."
+
+     (let [sq (case [player castle]
+                [:white :king]  "g1"
+                [:white :queen] "c1"
+                [:black :king]  "g8"
+                [:black :queen] "c8")]
+       (square-check? board
+                      other-player
+                      sq))
+     "The king would be in check after castling."
+     
+     (let [sqs (case [player castle]    ; squares between king and rook.
+                 [:white :king]  ["f1" "g1"]
+                 [:white :queen] ["b1" "c1" "d1"]
+                 [:black :king]  ["f8" "g8"]
+                 [:black :queen] ["b8" "c8" "d8"])]
+       (some (fn [sq]
+               (piece-at board sq))
+             sqs))
+     "There are pieces between the king and rook."
+
+     (let [sq (case [player castle]
+                   [:white :king]  "f1"
+                   [:white :queen] "d1"
+                   [:black :king]  "f8"
+                   [:black :queen] "d8")]
+       (square-check? board other-player sq))
+     "The king moves through a square that is attacked by a piece of the opponent.")))
+
+(defn eval-move
+  "Evaluates a move on the current game."
+  [mv game]
+  (cond
+   ;; Command could not be parsed, return as is.
+   (:invalid mv)
+   mv
+
+   (:castle mv)
+   (if-let [invalid (invalid-castle? mv game)]
+     {:invalid true
+      :cause (str "Invalid castle: " invalid)})))
 
 (defn -main
   "Starts a game of chess, alternately asking for players' moves on the command
@@ -189,11 +285,14 @@ player.)
     (when-not (:over game)
       (print-board (:board game))
       (let [str-mv (prompt-move (:current-player game))
-            mv     (eval-move str-mv)]
+            mv     (eval-move (parse-move str-mv)
+                              game)]
+        (if (:invalid mv)
+          (if (:parse-error mv)
+            (do (println (str "Cannot parse move: " (:input mv)))
+                (recur game))
 
+            (do (println (str "Invalid move: " (:cause mv)))
+                (recur game)))
 
-
-        (if (:illegal mv)
-          (do (println (str "Illegal move: " (:cause mv)))
-              (recur game))
           (recur (move game mv)))))))
