@@ -3,26 +3,24 @@
   (:require [clojure.string :as str]))
 
 (defn file
-  "Whether a character denotes a file (think 'column') on the chess board. Files
- range from lower case 'a' (white player's leftmost) to 'h' (white player's
- rightmost).
+  "Converts a file character (think 'column') to an int index on the chess board.
 
-   Returns the index of the rank when the board is a seq of seqs."
+   Files range from lower case 'a' (white player's leftmost) to 'h' (white
+   player's rightmost)."
   [ch]
   (let [i (.indexOf "abcdefgh" (str ch))]
     (if (>= i 0)
       i)))
 
 (defn rank
-  "Whether a character denotes a rank (think 'row') on the chess board.
-Ranks range from '1' (closest to white player) to '8' (furthest from white
-player.)
+  "Converts a rank character (think 'row') to an int index on the chess board.
 
-   Returns the char itself or nil if it's not a rank."
+   Ranks range from '1' (closest to white player) to '8' (furthest from white
+   player.)"
   [ch]
   (let [i (.indexOf "12345678" (str ch))]
     (if (>= i 0)
-      (- 7 i))))
+      i)))
 
 (defn parse-square
   "Parses the coordinates for a square into a seq [file rank], suitable for
@@ -69,8 +67,8 @@ player.)
 
    Upper case characters for white pieces, lower case for black pieces.
 
-   The board is a 2D seq where an entry (i,j) contains the piece in cell (i,j)
-   starting furthest from the white player's position."
+   The data structure of the board is a 2D seq where an entry (i,j) contains the
+   piece in cell (i,j) starting closest to the white player's position."
   [xs]
   (let [piece (fn [ch]
                 (if-let [kind (pieces (Character/toUpperCase ch))]
@@ -80,13 +78,13 @@ player.)
                             :black)
                    :str   ch        ; string representation of this piece.
                    }))]
-    (map #(map piece %)
-         xs)))
+    (reverse (map #(map piece %)
+                  xs))))
 
 (defn print-board
   "Prints to stdout the board as seen by the white player."
   [board]
-  (doseq [rank board]
+  (doseq [rank (reverse board)]
     (println (str/join (map (fn [piece]
                               (if (nil? piece)
                                 "."
@@ -103,6 +101,23 @@ player.)
                 "........"
                 "PPPPPPPP"
                 "RNBQKBNR"]))
+
+(defn player-pieces
+  "A seq of the pieces of a player on the board."
+  [board player]
+  ;; TODO - Finish me.
+  
+  )
+
+
+
+
+
+;;
+;;
+
+
+
 
 (defn square-check?
   "Whether a square is in check by a piece of informed player."

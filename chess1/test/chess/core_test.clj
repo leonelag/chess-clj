@@ -20,11 +20,19 @@
              (map count board))
           "Each rank should have 8 files")
       (is (= (repeat 8 :black)
-             (map :color (first board)))
-          "First rank should have 8 black pieces") 
-      (is (= (repeat 8 :white)
              (map :color (last board)))
-          "Last rank should have 8 white pieces"))))
+          "Last seq in the data structure should have 8 black pieces") 
+      (is (= (repeat 8 :white)
+             (map :color (first board)))
+          "First seq in the data structure should have 8 white pieces")
+      (is (= [:rook :knight :bishop :queen :king :bishop :knight :rook]
+             (map :kind (first board ))
+             (map :kind (last board)))
+          "First and last ranks of the board should have the correct pieces.")
+      (is (= (repeat 8 :pawn)
+             (map :kind (second board))
+             (map :kind (nth board 6)))
+          "Second and seventh ranks of the board should only have pawns."))))
 
 (deftest test-rank
   (testing "Rank and file functions"
@@ -34,12 +42,12 @@
     (is (= 7
            (file \h))
         "Rank H is white player's rightmost")
-    (is (= 0
-           (rank \8))
-        "Rank 8 is furthest from white player and first element in board representation")
     (is (= 7
+           (rank \8))
+        "Rank 8 is furthest from white player and last element in board data structure")
+    (is (= 0
            (rank \1))
-        "Rank 1 is closests to white player and 7th element in board representation")
+        "Rank 1 is closest to white player and first element in board data structure")
     (is (= {:kind  :king
             :color :black}
            (select-keys (piece-at board (file \e) (rank \8))
