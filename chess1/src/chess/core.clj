@@ -106,18 +106,17 @@
   "A seq of the pieces of a player on the board."
   [board player]
   ;; TODO - Finish me.
-  
-  )
-
-
-
-
-
-;;
-;;
-
-
-
+  (let [pieces (flatten board)
+        idxs   (for [r (range 8), c (range 8)]
+                 [r c])]
+    (->> (map (fn [p [r c]]
+                (if p
+                  (assoc p, :row r, :col c)))
+              pieces
+              idxs)
+         (filter (fn [p]
+                   (and (not (nil? p))
+                        (= player (:color p))))))))
 
 (defn square-check?
   "Whether a square is in check by a piece of informed player."

@@ -100,3 +100,22 @@
              (:from-file mv)))
       (is (:ep mv))
       (is (:cap mv)))))
+
+(deftest test-player-pieces
+  (testing "Testing player pieces"
+    (is (empty? (filter nil?
+                        (player-pieces chess.core/board
+                                       :white)))
+        "Should not return seq with nil elements.")
+    (is (= (repeat 16 :white)
+           (map :color (player-pieces chess.core/board
+                                      :white)))
+        "Should return 16 white pieces")
+    (is (= #{0 1}
+           (set (map :row (player-pieces chess.core/board
+                                         :white))))
+        "White pieces should be in rows 0 and 1.")
+    (is (= #{6 7}
+           (set (map :row (player-pieces chess.core/board
+                                         :black))))
+        "Black pieces should be in rows 6 and 7.")))
