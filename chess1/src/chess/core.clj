@@ -236,44 +236,39 @@ and are indexes into the board data structure."
    O-O
    e2g4"
   [s]
-  (let [re-pawn      #"([a-h])([1-8])"
-        re-pawn-cap  #"([a-h])x([a-h])([1-8])(\(ep\))?"
-        re-piece     #"([BKNR])([a-h]?)(x?)([a-h])([1-8])"
-        re-coord     #"([a-h])([1-8])([a-h])([1-8])"]
+  (let [re-pawn      #"([a-h][1-8])"
+        re-pawn-cap  #"([a-h])x([a-h][1-8])(\(ep\))?"
+        re-piece     #"([BKNR])([a-h]?)(x?)([a-h][1-8])"
+        re-coord     #"([a-h][1-8])([a-h][1-8])"]
     (cond
      ;; pawn moves
      (re-matches re-pawn s)
-     (let [[_ f r] (first (re-seq re-pawn s))]
+     (let [[_ sq] (first (re-seq re-pawn s))]
        {:piece :pawn
-        :to [(file (.charAt f 0))
-             (rank (.charAt r 0))]})
+        :to (parse-square sq)})
 
      ;; pawn captures
      (re-matches re-pawn-cap s)
-     (let [[_ from-file f r ep?] (first (re-seq re-pawn-cap s))]
+     (let [[_ from-file sq ep?] (first (re-seq re-pawn-cap s))]
        {:piece :pawn
-        :to [(file (.charAt f 0))
-             (rank (.charAt r 0))]
+        :to (parse-square sq)
         :ep  (boolean ep?)
         :cap true
         :from-file (if from-file (file (.charAt from-file 0)))})
 
      ;; piece moves or captures
      (re-matches re-piece s)
-     (let [[_ p from-file cap? f r] (first (re-seq re-piece s))]
+     (let [[_ p from-file cap? sq] (first (re-seq re-piece s))]
        {:piece (pieces p)
-        :to [(file (.charAt f 0))
-             (rank (.charAt r 0))]
+        :to (parse-square sq)
         :cap (boolean cap?)
         :from-file (if from-file (file (.charAt from-file 0)))})
 
      ;; coordinate notation
      (re-matches re-coord s)
-     (let [[_ f1 r1 f2 r2] (first (re-seq re-coord s))]
-       {:from [(file (.charAt f1 0))
-               (rank (.charAt r1 0))]
-        :to [(file (.charAt f2 0))
-             (rank (.charAt r2 0))]})
+     (let [[_ sq1 sq2] (first (re-seq re-coord s))]
+       {:from (parse-square sq1)
+        :to   (parse-square sq2)})
 
      ;; castle with king's rook
      (= "0-0" s)
@@ -366,7 +361,11 @@ and are indexes into the board data structure."
    (:castle mv)
    (if-let [invalid (invalid-castle? mv game)]
      {:invalid true
-      :cause (str "Invalid castle: " invalid)})))
+      :cause (str "Invalid castle: " invalid)})
+
+   ;; TODO - finish me
+   
+   ))
 
 (defn -main
   "Starts a game of chess, alternately asking for players' moves on the command

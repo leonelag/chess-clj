@@ -78,14 +78,14 @@
     (let [mv (parse-move "e5")]
       (is (= :pawn
              (:piece mv)))
-      (is (= [(file \e) (rank \5)]
+      (is (= (parse-square "e5")
              (:to mv)))
       (is (not (:ep mv)))
       (is (not (:cap mv))))
     (let [mv (parse-move "exd4")]
       (is (= :pawn
              (:piece mv)))
-      (is (= [(file \d) (rank \4)]
+      (is (= (parse-square "d4")
              (:to mv)))
       (is (= (file \e)
              (:from-file mv)))
@@ -94,7 +94,7 @@
     (let [mv (parse-move "exd4(ep)")]
       (is (= :pawn
              (:piece mv)))
-      (is (= [(file \d) (rank \4)]
+      (is (= (parse-square "d4")
              (:to mv)))
       (is (= (file \e)
              (:from-file mv)))
