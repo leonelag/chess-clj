@@ -166,11 +166,11 @@
 (deftest test-square-attacked
   (testing "Testing square-attacked for different board configurations"
     (let [board (parse-board ["xxxxxxxR"
-                              "xQxxxxxx"
+                              "xQxxP.xx"
                               "xxx....."
-                              "...x...p"
-                              "x.x.x.x."
-                              "...x.x.."
+                              ".x.x...p"
+                              "xxx.x.x."
+                              ".x.x.x.."
                               ".N.x.xx."
                               "...xP..x"])]
       (is (square-attacked? board :white [6 0])
@@ -205,4 +205,8 @@
         (is (not (square-attacked? board color [4 5]))
             "not attacked")
         (is (not (square-attacked? board color [5 6]))
-            "black pawn does not attack south")))))
+            "black pawn does not attack south")
+        (is (not (square-attacked? board color [0 1]))
+            "hidden from queen behind knight")
+        (is (not (square-attacked? board color [6 5]))
+            "hidden from queen behind pawn")))))

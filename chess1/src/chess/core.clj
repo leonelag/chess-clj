@@ -176,7 +176,7 @@ and are indexes into the board data structure."
   "Whether a square is in check by a piece of informed player."
   [board player [row col]]
   ;; checks over the square to find a piece is of the same color and kind as param
-  (let [is-piece-at? (fn [sqs kinds]
+  (let [is-piece-at? (fn [kinds sqs]
                        (some (fn [[r c]]
                                (if-let [piece (piece-at board r c)]
                                  (and (= player (:color piece))
@@ -189,24 +189,30 @@ and are indexes into the board data structure."
                       :black (inc row))
            sqs (filter within-board [[pawn-row (dec col)]
                                      [pawn-row (inc col)]])]
-       (is-piece-at? sqs #{:pawn}))
+       (is-piece-at? #{:pawn} sqs))
 
      ;; square in check by a knight
-     (is-piece-at? (knight-squares row col)
-                   #{:knight})
+     (is-piece-at? #{:knight}
+                   (knight-squares row col))
 
-     (some (fn [d]
-             (is-piece-at? d #{:queen :bishop}))
-           (diagonals row col))
+     ;; look in diagonals for the first piece, see if it's queen or bishop
+     (->> (diagonals row col)                   ; in each diagonal
+          (map #(first (drop-while              ; get the first piece
+                        (fn [[r c]] (nil? (piece-at board r c)))
+                        %)))
+          (filter not-nil?)                     ; some diagonals do not have pieces
+          (is-piece-at? #{:queen :bishop}))
 
-     ;; square in check on same row or same col by bishop or queen
-     (some (fn [p]
-             (is-piece-at? p #{:queen :rook}))
-           (parallels row col))
+     (->> (parallels row col)                   ; in each row and col
+          (map #(first (drop-while              ; get the first piece
+                        (fn [[r c]] (nil? (piece-at board r c)))
+                        %)))
+          (filter not-nil?)                     ; some do not have pieces
+          (is-piece-at? #{:queen :rook}))
 
      ;; square in check by king
-     (is-piece-at? (around row col)
-                   #{:king}))))
+     (is-piece-at? #{:king}
+                   (around row col)))))
 
 (defn- new-game
   "Creates a new match of chess.
