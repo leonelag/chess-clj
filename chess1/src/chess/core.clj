@@ -1,6 +1,9 @@
 (ns chess.core
   (:gen-class)
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as string]))
+
+;; Utility functions
+(def not-nil? (complement nil?))
 
 (defn file
   "Converts a file character (think 'column') to an int index on the chess board.
@@ -8,7 +11,7 @@
    Files range from lower case 'a' (white player's leftmost) to 'h' (white
    player's rightmost)."
   [ch]
-  (let [i (.indexOf "abcdefgh" (str ch))]
+  (let [i (.indexOf "abcdefgh" (string/lower-case (str ch)))]
     (if (>= i 0)
       i)))
 
@@ -26,22 +29,22 @@
   "Parses the coordinates for a square into a seq [file rank], suitable for
   indexing the board."
   [s]
-  [(file (.charAt s 0))
-   (rank (.charAt s 1))])
+  [(rank (.charAt s 1))
+   (file (.charAt s 0))])
 
 (defn piece-at
   "The piece at a rank and file on the board.
 
-   The order of the parameters is (file,rank) as per the Standard Algebraic Notation, for instance, E8.
-   Rank and file should be integers in the range [0..7]."
+  Takes either a string in the Standard Algebraic Notation, for instance, E8
+or a pair (row,col) where row and col are in the range [0..7]
+and are indexes into the board data structure."
   ([board ^String square]
-     (let [f (file (.charAt square 0))
-           r (rank (.charAt square 1))]
-       (piece-at board f r)))
-  ([board file rank]
+     (let [[row col] (parse-square square)]
+       (piece-at board row col)))
+  ([board row col]
      (-> board
-         (nth rank)
-         (nth file))))
+         (nth row)
+         (nth col))))
 
 (def pieces
   {\K :king
@@ -70,22 +73,23 @@
    The data structure of the board is a 2D seq where an entry (i,j) contains the
    piece in cell (i,j) starting closest to the white player's position."
   [xs]
-  (let [piece (fn [ch]
-                (if-let [kind (pieces (Character/toUpperCase ch))]
-                  {:kind  kind
-                   :color (if (Character/isUpperCase ch)
-                            :white
-                            :black)
-                   :str   ch        ; string representation of this piece.
-                   }))]
-    (reverse (map #(map piece %)
-                  xs))))
+  (reverse
+   (for [[row rownum] (map vector xs (range 7 -1 -1))]
+     (for [[ch colnum] (map vector row (range 8))]
+       (if-let [kind (pieces (Character/toUpperCase ch))]
+         {:kind  kind
+          :color (if (Character/isUpperCase ch)
+                   :white
+                   :black)
+          :str   ch        ; string representation of this piece.
+          :row   rownum
+          :col   colnum})))))
 
 (defn print-board
   "Prints to stdout the board as seen by the white player."
   [board]
   (doseq [rank (reverse board)]
-    (println (str/join (map (fn [piece]
+    (println (string/join (map (fn [piece]
                               (if (nil? piece)
                                 "."
                                 (:str piece)))
@@ -102,10 +106,15 @@
                 "PPPPPPPP"
                 "RNBQKBNR"]))
 
+(defn within-board
+  "Whether coordinates for a square are in the board bounds."
+  [[row col]]
+  (and (<= 0 row 7)
+       (<= 0 col 7)))
+
 (defn player-pieces
   "A seq of the pieces of a player on the board."
   [board player]
-  ;; TODO - Finish me.
   (let [pieces (flatten board)
         idxs   (for [r (range 8), c (range 8)]
                  [r c])]
@@ -115,17 +124,89 @@
               pieces
               idxs)
          (filter (fn [p]
-                   (and (not (nil? p))
+                   (and (not-nil? p)
                         (= player (:color p))))))))
 
-(defn square-check?
-  "Whether a square is in check by a piece of informed player."
-  [board player sq]
-  ;; TODO - Finish me.
-  
+(defn knight-squares
+  "The squares that a knight at (row,col) can move to."
+  [row col]
+  (let [deltas [[1 2]   [2 1]   [2 -1] [1 -2]
+                [-1 -2] [-2 -1] [-2 1] [-1 2]]]
+    (filter within-board
+            (for [[dr dc] deltas]
+              [(+ row dr) (+ col dc)]))))
 
-  
-  )
+(defn diagonals
+  "The diagonals starting from a square.
+   Returns seqs of seqs of squares, each containing the squares in a direction: NE, NW, SW, SE.
+   None of the inner seqs is empty."
+  [row col]
+  (->>
+   (for [dr [-1 1], dc [-1 1]]
+     (take-while
+      within-board
+      (drop 1
+            (iterate (fn [[r c]] [(+ r dr) (+ c dc)])
+                     [row col]))))
+   (filter (complement empty?))))
+
+(defn parallels
+  "Squares in the same row or same col, starting from a square.
+   Returns seqs of seqs of squares, each containing the squares in a direction: N, W, S, E.
+   None of the inner seqs is empty."
+  [row col]
+  (->>
+   (for [[dr dc] [[0 1], [1 0], [0 -1], [-1 0]]]
+     (take-while
+      within-board
+      (drop 1 (iterate (fn [[r c]] [(+ r dr) (+ c dc)])
+                       [row col]))))
+   (filter (complement empty?))))
+
+(defn around
+  "The squares around a square."
+  [row col]
+  (->>
+   (map (fn [[dr dc]]
+          [(+ row dr) (+ col dc)])
+        [[0 1], [1 1], [1 0], [1 -1], [0 -1], [-1 -1], [-1 0], [-1 1]])
+   (filter within-board)))
+
+(defn square-attacked?
+  "Whether a square is in check by a piece of informed player."
+  [board player [row col]]
+  ;; checks over the square to find a piece is of the same color and kind as param
+  (let [is-piece-at? (fn [sqs kinds]
+                       (some (fn [[r c]]
+                               (if-let [piece (piece-at board r c)]
+                                 (and (= player (:color piece))
+                                      (kinds (:kind piece)))))
+                             sqs))]
+    (or
+     ;; square in check by a pawn
+     (let [pawn-row (case player
+                      :white (dec row)
+                      :black (inc row))
+           sqs (filter within-board [[pawn-row (dec col)]
+                                     [pawn-row (inc col)]])]
+       (is-piece-at? sqs #{:pawn}))
+
+     ;; square in check by a knight
+     (is-piece-at? (knight-squares row col)
+                   #{:knight})
+
+     (some (fn [d]
+             (is-piece-at? d #{:queen :bishop}))
+           (diagonals row col))
+
+     ;; square in check on same row or same col by bishop or queen
+     (some (fn [p]
+             (is-piece-at? p #{:queen :rook}))
+           (parallels row col))
+
+     ;; square in check by king
+     (is-piece-at? (around row col)
+                   #{:king}))))
 
 (defn- new-game
   "Creates a new match of chess.
@@ -238,24 +319,24 @@
                 [player (:castle mv)])
      "Rook moved earlier in the game."
 
-     (let [sq (case player
-                   :white "e1"
-                   :black "e8")]
-       (square-check? board
+     (let [[row col] (parse-square (case player
+                                     :white "e1"
+                                     :black "e8"))]
+       (square-attacked? board
                       other-player
-                      sq))
+                      row col))
      "The king is in check."
 
-     (let [sq (case [player castle]
-                [:white :king]  "g1"
-                [:white :queen] "c1"
-                [:black :king]  "g8"
-                [:black :queen] "c8")]
-       (square-check? board
+     (let [[row col] (parse-square (case [player castle]
+                                     [:white :king]  "g1"
+                                     [:white :queen] "c1"
+                                     [:black :king]  "g8"
+                                     [:black :queen] "c8"))]
+       (square-attacked? board
                       other-player
-                      sq))
+                      row col))
      "The king would be in check after castling."
-     
+
      (let [sqs (case [player castle]    ; squares between king and rook.
                  [:white :king]  ["f1" "g1"]
                  [:white :queen] ["b1" "c1" "d1"]
@@ -266,12 +347,12 @@
              sqs))
      "There are pieces between the king and rook."
 
-     (let [sq (case [player castle]
-                   [:white :king]  "f1"
-                   [:white :queen] "d1"
-                   [:black :king]  "f8"
-                   [:black :queen] "d8")]
-       (square-check? board other-player sq))
+     (let [[row col] (parse-square (case [player castle]
+                                     [:white :king]  "f1"
+                                     [:white :queen] "d1"
+                                     [:black :king]  "f8"
+                                     [:black :queen] "d8"))]
+       (square-attacked? board other-player row col))
      "The king moves through a square that is attacked by a piece of the opponent.")))
 
 (defn eval-move
