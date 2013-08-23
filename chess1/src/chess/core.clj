@@ -232,92 +232,171 @@ and are indexes into the board data structure."
   (println (str player " player, your move ?"))
   (.readLine *in*))
 
-(defn parse-move
-  "Parses a move command according to the Standard Algebraic Notation or coordinate notation
+(defn pawn-to
+  "Attempt to move a pawn of color (player) to (row,col)."
+  [board player row col]
+  (let [is-pawn? (fn [r]
+                   (if-let [p (piece-at board r col)]
+                     (if (and (= player (:color p))
+                              (= :pawn  (:kind p)))
+                       r)))
+        invalid {:invalid :true,
+                 :cause (str "no pawn can move to (" row "," col ")")}]
+    (if (nil? (piece-at board row col))
+      ;; Move to free square. Look for a pawn that can move to this square
+      (if-let [from-row (cond
+                         (and (= :white player) (= 3 col))
+                         (cond (is-pawn? (dec row))
+                               (dec row)
 
-   Example of valid moves:
-   e4
-   Bc6
-   Nxf6
-   O-O
-   e2g4"
-  [s]
-  (let [re-pawn      #"([a-h][1-8])"
-        re-pawn-cap  #"([a-h])x([a-h][1-8])(\(ep\))?"
-        re-piece     #"([BKNR])([a-h]?)(x?)([a-h][1-8])"
-        re-coord     #"([a-h][1-8])([a-h][1-8])"]
-    (cond
-     ;; pawn moves
-     (re-matches re-pawn s)
-     (let [[_ sq] (first (re-seq re-pawn s))]
-       {:piece :pawn
-        :to (parse-square sq)})
+                               (and (is-pawn? (dec (dec row)))
+                                    (nil? (piece-at board (dec row) col)))
+                               (dec (dec row)))
 
-     ;; pawn captures
-     (re-matches re-pawn-cap s)
-     (let [[_ from-file sq ep?] (first (re-seq re-pawn-cap s))]
-       {:piece :pawn
-        :to (parse-square sq)
-        :ep  (boolean ep?)
-        :cap true
-        :from-file (if from-file (file (.charAt from-file 0)))})
+                         (= :white player)
+                         (is-pawn? (dec row))
 
-     ;; piece moves or captures
-     (re-matches re-piece s)
-     (let [[_ p from-file cap? sq] (first (re-seq re-piece s))]
-       {:piece (pieces p)
-        :to (parse-square sq)
-        :cap (boolean cap?)
-        :from-file (if from-file (file (.charAt from-file 0)))})
+                         (and (= :black player) (= 5 col))
+                         (cond (is-pawn? (inc row))
+                               (inc row)
 
-     ;; coordinate notation
-     (re-matches re-coord s)
-     (let [[_ sq1 sq2] (first (re-seq re-coord s))]
-       {:from (parse-square sq1)
-        :to   (parse-square sq2)})
+                               (and (is-pawn? (inc (inc row)))
+                                    (nil? (piece-at board (inc row) col)))
+                               (inc (inc row)))
 
-     ;; castle with king's rook
-     (= "0-0" s)
-     {:piece  :king
-      :castle :king}
+                         (= :black player)
+                         (is-pawn? (inc row)))]
+        {:move [[from-row col] [row col]]}
+        invalid)
 
-     ;; castle with queen's rook
-     (= "0-0-0" s)
-     {:piece  :king
-      :castle :queen}
+      ;; square occupied
+      invalid)))
 
-     ;; default
-     :else
-     {:invalid     true
-      :parse-error true
-      :input       s})))
+(defn pawn-capture
+  "Evalutes a capture by pawn.
 
+   Returns :invalid or :move according to documentation of parse-eval-move"
+  ;; TODO Consider en-passant capture
+  [board player row col from-col ep?]
+  (let [from-row (case player
+                   :white (dec row)
+                   :black (inc row))
+        p (piece-at board row col)
+        ;; a square may be captured by a pawn on its west or east
+        [west east] (map (fn [c]
+                           (if-let [p (and (within-board from-row c)
+                                           (piece-at board from-row c))]
+                             (if (and (= player (:color p))
+                                      (= :pawn (:kind p)))
+                               p)))
+                         [(dec col) (inc col)])]
+    (if (or
+         ;; attempt to capture empty square
+         (nil? p)
 
-(defn- move
-  "Updates the game with the move performed by the player."
-;  [game mv]
-                                        ;  (let [b (:board game)])
-  ; FIXME: finish me
-  []
-  )
+         ;; attempt to capture own piece
+         (= player (:color p))
+
+         ;; two pawns can capture but hint does not disambiguate
+         (and (and west east)
+              (not= from-col (:col west))
+              (not= from-col (:col east)))
+
+         ;; one pawn can capture but hint does not point at it
+         (and west
+              (not= from-col (:col west)))
+         (and east
+              (not= from-col (:col east)))
+
+         ;; no pawn can capture
+         (not (or west east)))
+      {:invalid true,
+       :cause (str "no pawn can capture at (" row "," col ")")}
+
+      {:move [[from-row (cond
+                         from-col from-col
+                         west     (:col west)
+                         east     (:col east))]
+              [row col]]})))
+
+(defn path
+  "The sequence of squares between two squares."
+  [[r1 c1] [r2 c2]]
+  (let [dr (- r2 r1), dc (- c2 c1)]
+    (take-while
+     (fn [[r c]]
+       (and (not= r r2)
+            (not= c c2)))
+     (iterate (fn [[r c]]
+                [(+ r dr) (+ c dc)])))))
+
+(defn piece-between?
+  [board [r1 c1] [r2 c2]]
+  (some (fn [[r c]]
+          (not-nil? (piece-at board r c)))
+        (path [r1 c1] [r2 c2])))
+
+(defn piece-move
+  "Validates a piece move."
+  [board player row col kind from-file cap?]
+  (let [p (piece-at board row col)
+        ;; see if there is a piece in the path between two squares
+        ]
+    (if (or
+         ;; cannot capture empty square
+         (and cap? (nil? p))
+
+         ;; cannot move into square occupied by player's own piece
+         (= player (:color p)))
+      {:invalid true, :cause "Invalid move"}
+
+      ;; find the pieces that can move into the square
+      (let [sqs (case kind
+                  :knight (knight-squares row col)
+                  :bishop (flatten (diagonals row col))
+                  :rook   (flatten (parallels row col))
+                  :queen  (flatten (concat
+                                    (diagonals row col)
+                                    (parallels row col)))
+                  :kind   (around row col))
+            ps (->> sqs
+                    (map (fn [[r c]]
+                           (piece-at board r c)))
+                    (filter (fn [p]
+                              (and (not-nil? p)
+                                   (= kind (:kind p))
+                                   (= player (:color p))
+                                   (or
+                                    (= kind :knight)
+                                    (not (piece-between? [(:row p) (:col p)]
+                                                         [row col])))))))]
+        (cond
+         (> (count ps) 1)
+         {:invalid true, :cause "Ambiguous move."}
+
+         (< (count ps) 1)
+         {:invalid true, :cause "No piece can make this move."}
+
+         :else
+         (let [p (first ps)]
+           {:move [[(:row p) (:col p)] [row col]]}))))))
 
 (defn invalid-castle?
   "Whether the move is a castle which violates the castling rules.
 
    Returns a string explaining the violated castling rule,
    or nil if the castling is valid."
-  [mv game]
+  [side game]
   (let [board (:board game)
         player (:current-player game)
-        other (other-player player)
-        castle (:castle mv)]
+        other (other-player player)]
     (cond
      (contains? (:king-moved game)
                 player)
      "King moved earlier in the game."
 
      (contains? (:rook-moved game)
-                [player (:castle mv)])
+                [player side])
      "Rook moved earlier in the game."
 
      (let [[row col] (parse-square (case player
@@ -328,7 +407,7 @@ and are indexes into the board data structure."
                       row col))
      "The king is in check."
 
-     (let [[row col] (parse-square (case [player castle]
+     (let [[row col] (parse-square (case [player side]
                                      [:white :king]  "g1"
                                      [:white :queen] "c1"
                                      [:black :king]  "g8"
@@ -338,7 +417,7 @@ and are indexes into the board data structure."
                       row col))
      "The king would be in check after castling."
 
-     (let [sqs (case [player castle]    ; squares between king and rook.
+     (let [sqs (case [player side]    ; squares between king and rook.
                  [:white :king]  ["f1" "g1"]
                  [:white :queen] ["b1" "c1" "d1"]
                  [:black :king]  ["f8" "g8"]
@@ -348,7 +427,7 @@ and are indexes into the board data structure."
              sqs))
      "There are pieces between the king and rook."
 
-     (let [[row col] (parse-square (case [player castle]
+     (let [[row col] (parse-square (case [player side]
                                      [:white :king]  "f1"
                                      [:white :queen] "d1"
                                      [:black :king]  "f8"
@@ -356,22 +435,104 @@ and are indexes into the board data structure."
        (square-attacked? board other-player row col))
      "The king moves through a square that is attacked by a piece of the opponent.")))
 
-(defn eval-move
-  "Evaluates a move on the current game."
-  [mv game]
-  (cond
-   ;; Command could not be parsed, return as is.
-   (:invalid mv)
-   mv
+(defn castle
+  [side game]
+  (if-let [cause (invalid-castle? side game)]
+    {:invalid true, :cause cause}
 
-   (:castle mv)
-   (if-let [invalid (invalid-castle? mv game)]
-     {:invalid true
-      :cause (str "Invalid castle: " invalid)})
+    (let [board (:board game)
+          player (:current-player game)
+          king (case player
+                 :white (piece-at board 0 4)
+                 :black (piece-at board 7 4))
+          [rook [kr kc] [rr rc]]
+          (case [player side]
+            [:white :king]  [(piece-at board 0 7) [0 6] [0 5]]
+            [:white :queen] [(piece-at board 0 0) [0 2] [0 3]]
+            [:black :king]  [(piece-at board 7 7) [7 6] [7 5]]
+            [:black :queen] [(piece-at board 7 0) [7 2] [7 3]])]
+      {:remove [[(:row king) (:col king)]
+                [(:row rook) (:col rook)]]
+       :add    [[kr kc (assoc king :row kr :col kc)]
+                [rr rc (assoc rook :row rr :col rc)]]})))
 
-   ;; TODO - finish me
-   
-   ))
+(defn parse-eval-move
+  "Parses a move command according to the Standard Algebraic Notation or coordinate notation
+
+   Example of valid moves:
+   e4
+   Bc6
+   Nxf6
+   O-O
+   e2g4
+
+   Query the result for:
+   :invalid - if the move was invalid
+   :move    - [[row-from,col-from], [row-to,col-to]] if a piece is to be moved
+   :remove  - seq of [row,col] with the coordinates of the pieces to be removed
+   :add     - seq of [row,col,piece] with the coordinates of pieces to add."
+  [s game]
+  (let [re-pawn      #"([a-h][1-8])"
+        re-pawn-cap  #"([a-h])x([a-h][1-8])(\(ep\))?"
+        re-piece     #"([BKNR])([a-h]?)(x?)([a-h][1-8])"
+        re-coord     #"([a-h][1-8])([a-h][1-8])"
+        board  (:board game)
+        player (:current-player game)]
+    (cond
+     ;; pawn moves
+     (re-matches re-pawn s)
+     (let [[_ sq] (first (re-seq re-pawn s))
+           [row, col] (parse-square sq)]
+       (pawn-to board player row col))
+
+     ;; pawn captures
+     (re-matches re-pawn-cap s)
+     (let [[_ from-file sq ep?] (first (re-seq re-pawn-cap s))
+           from-col (if from-file (file (.charAt from-file 0)))
+           [row, col] (parse-square sq)]
+       (pawn-capture board player row col from-col ep?))
+
+     ;; piece moves or captures
+     (re-matches re-piece s)
+     (let [[_ p from-file cap? sq] (first (re-seq re-piece s))
+           [row,col] (parse-square sq)]
+       (piece-move board player row col (pieces p) from-file cap?))
+
+     ;; coordinate notation
+     (re-matches re-coord s)
+     ;; TODO - Finish me
+     (throw (IllegalArgumentException. "Not implemented."))
+
+     ;; castle with king's rook
+     (= "0-0" s)
+     (castle game :king)
+
+     ;; castle with queen's rook
+     (= "0-0-0" s)
+     (castle game :queen)
+
+     ;; default
+     :else
+     {:invalid     true
+      :parse-error true
+      :input       s})))
+
+(defn checkmate?
+  "Verifies is a game is in check mate."
+  ;; TODO - Finish me.
+  [game])
+(defn check?
+  "Verifies that a king is in check. "
+  ;; TODO - Finish me.
+  [game])
+
+(defn- move
+  "Updates the game with the move performed by the player."
+;  [game mv]
+                                        ;  (let [b (:board game)])
+  ; FIXME: finish me
+  []
+  )
 
 (defn -main
   "Starts a game of chess, alternately asking for players' moves on the command
@@ -385,8 +546,7 @@ and are indexes into the board data structure."
     (when-not (:over game)
       (print-board (:board game))
       (let [str-mv (prompt-move (:current-player game))
-            mv     (eval-move (parse-move str-mv)
-                              game)]
+            mv     (parse-eval-move str-mv game)]
         (if (:invalid mv)
           (if (:parse-error mv)
             (do (println (str "Cannot parse move: " (:input mv)))
