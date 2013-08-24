@@ -54,9 +54,7 @@ and are indexes into the board data structure."
      (let [[row col] (parse-square square)]
        (piece-at board row col)))
   ([board row col]
-     (-> board
-         (nth row)
-         (nth col))))
+     (get-in board [row col])))
 
 (def pieces
   {\K :king
