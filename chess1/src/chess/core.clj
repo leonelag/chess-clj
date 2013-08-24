@@ -2,6 +2,9 @@
   (:gen-class)
   (:require [clojure.string :as string]))
 
+;; TODO - remove this
+(def debug println)
+
 ;; Utility functions
 (def not-nil? (complement nil?))
 
@@ -24,6 +27,15 @@
   (let [i (.indexOf "12345678" (str ch))]
     (if (>= i 0)
       i)))
+
+(defn to-std-notation
+  "Converts internal data structure coordinates (row,col) into human-readable
+  rank/file notation."
+  [row col]
+  (let [ranks "ABCDEFGH"
+        files "12345678"]
+    (str (.charAt ranks col)
+         (.charAt files row))))
 
 (defn parse-square
   "Parses the coordinates for a square into a seq [file rank], suitable for
@@ -229,7 +241,10 @@ and are indexes into the board data structure."
   "Prints a message to stdout asking for the player's move, reads and returns a
    line of input from stdin."
   [player]
-  (println (str player " player, your move ?"))
+  (let [name (case player
+               :white "White"
+               :black "Black")]
+    (println name "player, your move ?"))
   (.readLine *in*))
 
 (defn pawn-to
@@ -241,7 +256,7 @@ and are indexes into the board data structure."
                               (= :pawn  (:kind p)))
                        r)))
         invalid {:invalid :true,
-                 :cause (str "no pawn can move to (" row "," col ")")}]
+                 :cause (str "no pawn can move to " (to-std-notation row col))}]
     (if (nil? (piece-at board row col))
       ;; Move to free square. Look for a pawn that can move to this square
       (if-let [from-row (cond
@@ -311,7 +326,7 @@ and are indexes into the board data structure."
          ;; no pawn can capture
          (not (or west east)))
       {:invalid true,
-       :cause (str "no pawn can capture at (" row "," col ")")}
+       :cause (str "no pawn can capture at " (to-std-notation row col))}
 
       {:move [[from-row (cond
                          from-col from-col
@@ -528,11 +543,10 @@ and are indexes into the board data structure."
 
 (defn- move
   "Updates the game with the move performed by the player."
-;  [game mv]
-                                        ;  (let [b (:board game)])
   ; FIXME: finish me
-  []
-  )
+  [game mv]
+  (debug "move: " mv)
+  game)
 
 (defn -main
   "Starts a game of chess, alternately asking for players' moves on the command
@@ -545,14 +559,28 @@ and are indexes into the board data structure."
   (loop [game (new-game)]
     (when-not (:over game)
       (print-board (:board game))
-      (let [str-mv (prompt-move (:current-player game))
-            mv     (parse-eval-move str-mv game)]
-        (if (:invalid mv)
-          (if (:parse-error mv)
-            (do (println (str "Cannot parse move: " (:input mv)))
-                (recur game))
+      (let [str-mv (prompt-move (:current-player game))]
+        (case str-mv
+          "quit"
+          ; end game, no recur.
+          (println "Goodbye !")
 
-            (do (println (str "Invalid move: " (:cause mv)))
-                (recur game)))
+          "undo"
+          (do (println "undo (not implemented)")
+              (recur game))
 
-          (recur (move game mv)))))))
+          "history"
+          (do (println "history (not implemented)")
+              (recur game))
+
+          ;; Not a command. Parse as a game move.
+          (let [mv (parse-eval-move str-mv game)]
+            (if (:invalid mv)
+              (if (:parse-error mv)
+                (do (println (str "Cannot parse move: " (:input mv)))
+                    (recur game))
+
+                (do (println (str "Invalid move: " (:cause mv)))
+                    (recur game)))
+
+              (recur (move game mv)))))))))

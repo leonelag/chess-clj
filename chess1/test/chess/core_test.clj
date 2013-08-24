@@ -59,6 +59,15 @@
                         [:kind :color]))
         "Piece at position E1 of the initial board should be the white king.")))
 
+(deftest test-to-std-notation
+  (is (= "E1" (to-std-notation 0 4)))
+  (is (= "A1" (to-std-notation 0 0)))
+  (is (= "H1" (to-std-notation 0 7)))
+  (is (= "A8" (to-std-notation 7 0)))
+  (is (= "H8" (to-std-notation 7 7)))
+  (is (= "E8" (to-std-notation 7 4))))
+
+
 (deftest test-print-board
   (testing ""
     (is (= (with-out-str (print-board chess.core/board))
