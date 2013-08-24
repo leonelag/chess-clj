@@ -85,17 +85,17 @@ and are indexes into the board data structure."
    The data structure of the board is a 2D seq where an entry (i,j) contains the
    piece in cell (i,j) starting closest to the white player's position."
   [xs]
-  (reverse
-   (for [[row rownum] (map vector xs (range 7 -1 -1))]
-     (for [[ch colnum] (map vector row (range 8))]
-       (if-let [kind (pieces (Character/toUpperCase ch))]
-         {:kind  kind
-          :color (if (Character/isUpperCase ch)
-                   :white
-                   :black)
-          :str   ch        ; string representation of this piece.
-          :row   rownum
-          :col   colnum})))))
+  (vec (reverse
+    (for [[row rownum] (map vector xs (range 7 -1 -1))]
+      (vec (for [[ch colnum] (map vector row (range 8))]
+             (if-let [kind (pieces (Character/toUpperCase ch))]
+               {:kind  kind
+                :color (if (Character/isUpperCase ch)
+                         :white
+                         :black)
+                :str   ch        ; string representation of this piece.
+                :row   rownum
+                :col   colnum})))))))
 
 (defn print-board
   "Prints to stdout the board as seen by the white player."
@@ -260,7 +260,7 @@ and are indexes into the board data structure."
     (if (nil? (piece-at board row col))
       ;; Move to free square. Look for a pawn that can move to this square
       (if-let [from-row (cond
-                         (and (= :white player) (= 3 col))
+                         (and (= :white player) (= 3 row))
                          (cond (is-pawn? (dec row))
                                (dec row)
 
@@ -271,7 +271,7 @@ and are indexes into the board data structure."
                          (= :white player)
                          (is-pawn? (dec row))
 
-                         (and (= :black player) (= 5 col))
+                         (and (= :black player) (= 5 row))
                          (cond (is-pawn? (inc row))
                                (inc row)
 
@@ -346,6 +346,7 @@ and are indexes into the board data structure."
                 [(+ r dr) (+ c dc)])))))
 
 (defn piece-between?
+  "Whether there is a piece in the path between two squares"
   [board [r1 c1] [r2 c2]]
   (some (fn [[r c]]
           (not-nil? (piece-at board r c)))
@@ -354,9 +355,7 @@ and are indexes into the board data structure."
 (defn piece-move
   "Validates a piece move."
   [board player row col kind from-file cap?]
-  (let [p (piece-at board row col)
-        ;; see if there is a piece in the path between two squares
-        ]
+  (let [p (piece-at board row col)]
     (if (or
          ;; cannot capture empty square
          (and cap? (nil? p))
