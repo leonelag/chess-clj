@@ -84,7 +84,7 @@
 
 ;;
 ;; TODO - rewrite test to use new function parse-eval-move instead of parse-move
-;; 
+;;
 
 ;; (deftest test-parse-move-pawns
 ;;   (testing "Testing parse-move for valid moves of pawns."
@@ -223,3 +223,33 @@
             "hidden from queen behind knight")
         (is (not (square-attacked? board color [6 5]))
             "hidden from queen behind pawn")))))
+
+(deftest test-board-move
+  "Test moves on the game."
+  ; pawn to e3
+  (let [b (board-move board {:move [[1 4] [2 4]]})]
+    (is (nil? (piece-at b 1 4)))
+    (is (= (select-keys (piece-at board 1 4)
+                        [:kind :color])
+           (select-keys (piece-at b 2 4)
+                        [:kind :color]))))
+
+  (let [b1 (parse-board ["...r...."
+                         "....PK.."
+                         ".k......"
+                         "........"
+                         "........"
+                         "........"
+                         "........"
+                         "........"])
+        b2 (board-move b1 {:remove [[6 4] [7 3]]
+                           :add [[7 3 {:kind :queen
+                                       :color :white
+                                       :row 7
+                                       :col 3
+                                       :str \Q}]]})]
+    (is (nil? (piece-at b2 6 4)))
+    (is (= {:color :white,
+            :kind  :queen}
+           (select-keys (piece-at b2 7 3)
+                        [:kind :color])))))

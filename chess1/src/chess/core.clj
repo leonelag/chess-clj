@@ -103,7 +103,22 @@ and are indexes into the board data structure."
                               (if (nil? piece)
                                 "."
                                 (:str piece)))
-                            rank)))))
+                               rank)))))
+(defn print-game
+  "Prints current state of the game.
+
+  Prints the board and announces checks, wins and losses."
+  [game]
+  (print-board (:board game))
+  (if (:check game)
+    (if-let [winner (:checkmate game)]
+      (println "Checkmate ! "
+               (case winner
+                 :white "White"
+                 :black "Black")
+               " wins.")
+      (println "Check.")))
+  (println))
 
 (def board
   "The state of a chess board at the beginning of a match."
@@ -242,7 +257,7 @@ and are indexes into the board data structure."
   (let [name (case player
                :white "White"
                :black "Black")]
-    (println name "player, your move ?"))
+    (print name "player, your move ? "))
   (.readLine *in*))
 
 (defn pawn-to
@@ -445,7 +460,22 @@ and are indexes into the board data structure."
                                      [:black :king]  "f8"
                                      [:black :queen] "d8"))]
        (square-attacked? board other-player row col))
-     "The king moves through a square that is attacked by a piece of the opponent.")))
+     "The king moves through a square that is attacked by a piece of the opponent."
+
+
+     ;; Happens without triggering previous checks when a player loses its rook.
+     ;; So his king and rook never moved, but castling is impossible, because
+     ;; the pieces at those squares are not the good ones.
+     (let [[k r] (map (fn [[r c]] (piece-at board r c))
+                      (case [player side]
+                        [:white :king]  ["e1" "h1"]
+                        [:white :queen] ["e1" "a1"]
+                        [:black :king]  ["e8" "h8"]
+                        [:black :queen] ["e8" "a8"]))]
+       (or
+        (not= [:king player] (select-keys [:kind :color] k))
+        (not= [:rook player] (select-keys [:kind :color] r))))
+     "Cannot castle with these pieces.")))
 
 (defn castle
   [side game]
@@ -538,12 +568,70 @@ and are indexes into the board data structure."
   ;; TODO - Finish me.
   [game])
 
+(defn board-move
+  "Updates the board."
+  [board mv]
+  (letfn
+      [(remove-at [board removes]
+         (reduce (fn [b [r c]]
+                   (update-in b [r c] (fn [_] nil)))
+                 board
+                 removes))
+       (add-at [board adds]
+         (reduce (fn [b [r c p]]
+                   (update-in b [r c] (fn [_] p)))
+                 board
+                 adds))
+
+       (move [board mv]
+         (if-let [[[r1 c1] [r2 c2]] mv]
+           (let [p (assoc (piece-at board r1 c1)
+                     :row r2
+                     :col c2)]
+             (-> board
+                 (remove-at [[r1 c1]])
+                 (add-at    [[r2 c2 p]])))
+           board))]
+    (-> board
+        (remove-at (:remove mv))
+        (add-at    (:add mv))
+        (move      (:move mv)))))
+
 (defn- move
-  "Updates the game with the move performed by the player."
-  ; FIXME: finish me
+  "Updates the game state after a player moved."
   [game mv]
-  (debug "move: " mv)
-  game)
+  (letfn [(king-moved? [board mv]
+            (if-let [[[r c] _] (:move mv)]
+              ;; the first moves of the kings are E1 and E8
+              (case [r c]
+                [0 4] :white
+                [7 4] :black
+                false)))
+          (rook-moved? [board mv]
+            (if-let [[[r c] _] (:move mv)]
+              (case [r c]
+                [0 0] [:white :queen]
+                [0 7] [:white :king]
+                [7 0] [:black :queen]
+                [7 7] [:black :king]
+                false)))
+          (update-if [m key val]
+            ;; updates m with val only if val is true; else returns m untouched.
+            (if val
+              (update-in m key #(conj % val))
+              m))]
+
+    ;; TODO - Verify en passant
+    ;; TODO - Verify king in check
+    ;; TODO - Verify checkmate.
+    (let [board (:board game)
+          b (board-move board mv)]
+      (-> game
+          (assoc
+            :board b
+            :current-player (other-player (:current-player game)))
+          (update-if :king-moved (king-moved? board mv))
+          (update-if :rook-moved (rook-moved? board mv))))))
 
 (defn -main
   "Starts a game of chess, alternately asking for players' moves on the command
@@ -555,7 +643,7 @@ and are indexes into the board data structure."
 
   (loop [game (new-game)]
     (when-not (:over game)
-      (print-board (:board game))
+      (print-game game)
       (let [str-mv (prompt-move (:current-player game))]
         (case str-mv
           "quit"
