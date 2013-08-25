@@ -133,6 +133,14 @@
                                          :black))))
         "Black pieces should be in rows 6 and 7.")))
 
+(deftest test-parse-square
+  (testing "Testing parse-square"
+    (is (= [5 2] (parse-square "c6")))
+    (is (= [2 2] (parse-square "c3")))
+    (is (= [2 5] (parse-square "f3")))
+    (is (= [3 4] (parse-square "e4")))
+    (is (= [4 4] (parse-square "e5"))))) 
+
 (deftest test-knight-squares
   (testing "Testing knight-squares"
     (is (= (map parse-square ["F5" "E6" "C6" "B5" "B3" "C2" "E2" "F3"])

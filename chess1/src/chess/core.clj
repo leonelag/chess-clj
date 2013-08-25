@@ -257,7 +257,7 @@ and are indexes into the board data structure."
   (let [name (case player
                :white "White"
                :black "Black")]
-    (print name "player, your move ? "))
+    (println name "player, your move ?"))
   (.readLine *in*))
 
 (defn pawn-to
@@ -284,10 +284,10 @@ and are indexes into the board data structure."
                          (= :white player)
                          (is-pawn? (dec row))
 
-                         (and (= :black player) (= 5 row))
+                         (and (= :black player) (= 4 row))
                          (cond (is-pawn? (inc row))
                                (inc row)
-
+                               
                                (and (is-pawn? (inc (inc row)))
                                     (nil? (piece-at board (inc row) col)))
                                (inc (inc row)))
@@ -312,7 +312,7 @@ and are indexes into the board data structure."
         p (piece-at board row col)
         ;; a square may be captured by a pawn on its west or east
         [west east] (map (fn [c]
-                           (if-let [p (and (within-board from-row c)
+                           (if-let [p (and (within-board [from-row c])
                                            (piece-at board from-row c))]
                              (if (and (= player (:color p))
                                       (= :pawn (:kind p)))
@@ -350,13 +350,21 @@ and are indexes into the board data structure."
 (defn path
   "The sequence of squares between two squares."
   [[r1 c1] [r2 c2]]
-  (let [dr (- r2 r1), dc (- c2 c1)]
+  (let [sgn (fn [n]
+              (cond
+               (< 0 n) 1
+               (> 0 n) -1
+               :else 0))
+        dr (sgn (- r2 r1)),
+        dc (sgn (- c2 c1))]
     (take-while
      (fn [[r c]]
        (and (not= r r2)
             (not= c c2)))
-     (iterate (fn [[r c]]
-                [(+ r dr) (+ c dc)])))))
+     (drop 1
+           (iterate (fn [[r c]]
+                      [(+ r dr) (+ c dc)])
+                    [r1 c1])))))
 
 (defn piece-between?
   "Whether there is a piece in the path between two squares"
@@ -369,44 +377,45 @@ and are indexes into the board data structure."
   "Validates a piece move."
   [board player row col kind from-file cap?]
   (let [p (piece-at board row col)]
-    (if (or
-         ;; cannot capture empty square
-         (and cap? (nil? p))
+    (cond
+     (and cap? (nil? p))
+     {:invalid true, :cause "Cannot capture empty square"}
 
-         ;; cannot move into square occupied by player's own piece
-         (= player (:color p)))
-      {:invalid true, :cause "Invalid move"}
+     (= player (:color p))
+     {:invalid true, :cause "Cannot capture own piece"}
 
-      ;; find the pieces that can move into the square
-      (let [sqs (case kind
-                  :knight (knight-squares row col)
-                  :bishop (flatten (diagonals row col))
-                  :rook   (flatten (parallels row col))
-                  :queen  (flatten (concat
-                                    (diagonals row col)
-                                    (parallels row col)))
-                  :kind   (around row col))
-            ps (->> sqs
-                    (map (fn [[r c]]
-                           (piece-at board r c)))
-                    (filter (fn [p]
-                              (and (not-nil? p)
-                                   (= kind (:kind p))
-                                   (= player (:color p))
-                                   (or
-                                    (= kind :knight)
-                                    (not (piece-between? [(:row p) (:col p)]
-                                                         [row col])))))))]
-        (cond
-         (> (count ps) 1)
-         {:invalid true, :cause "Ambiguous move."}
+     ;; find the pieces that can move into the square
+     :else
+     (let [sqs (case kind
+                 :knight (knight-squares row col)
+                 :bishop (apply concat (diagonals row col))
+                 :rook   (apply concat (parallels row col))
+                 :queen  (mapcat concat
+                                 (diagonals row col)
+                                 (parallels row col))
+                 :kind   (around row col))
+           ps (->> sqs
+                   (map (fn [[r c]]
+                          (piece-at board r c)))
+                   (filter (fn [p]
+                             (and (not-nil? p)
+                                  (= kind (:kind p))
+                                  (= player (:color p))
+                                  (or
+                                   (= kind :knight)
+                                   (not (piece-between? board
+                                                        [(:row p) (:col p)]
+                                                        [row col])))))))]
+       (cond
+        (> (count ps) 1)
+        {:invalid true, :cause "Ambiguous move."}
+        
+        (< (count ps) 1)
+        {:invalid true, :cause "No piece can make this move."}
 
-         (< (count ps) 1)
-         {:invalid true, :cause "No piece can make this move."}
-
-         :else
-         (let [p (first ps)]
-           {:move [[(:row p) (:col p)] [row col]]}))))))
+        :else
+        (let [p (first ps)]
+          {:move [[(:row p) (:col p)] [row col]]}))))))
 
 (defn invalid-castle?
   "Whether the move is a castle which violates the castling rules.
@@ -519,7 +528,11 @@ and are indexes into the board data structure."
         re-piece     #"([BKNR])([a-h]?)(x?)([a-h][1-8])"
         re-coord     #"([a-h][1-8])([a-h][1-8])"
         board  (:board game)
-        player (:current-player game)]
+        player (:current-player game)
+
+        ;; Converts the empty strings returned by re-seq into nil.
+        not-empty?   (fn [s] (if (not (empty? s))
+                               s))]
     (cond
      ;; pawn moves
      (re-matches re-pawn s)
@@ -536,9 +549,11 @@ and are indexes into the board data structure."
 
      ;; piece moves or captures
      (re-matches re-piece s)
-     (let [[_ p from-file cap? sq] (first (re-seq re-piece s))
+     (let [[_ kind from-file cap? sq] (first (re-seq re-piece s))
            [row,col] (parse-square sq)]
-       (piece-move board player row col (pieces p) from-file cap?))
+       (piece-move board player row col (pieces (.charAt kind 0))
+                   (not-empty? from-file)
+                   (not-empty? cap?)))
 
      ;; coordinate notation
      (re-matches re-coord s)
