@@ -98,12 +98,19 @@ and are indexes into the board data structure."
 (defn print-board
   "Prints to stdout the board as seen by the white player."
   [board]
-  (doseq [rank (reverse board)]
-    (println (string/join (map (fn [piece]
-                              (if (nil? piece)
-                                "."
-                                (:str piece)))
-                               rank)))))
+  (doseq [[rank, rownum] (map vector
+                              (reverse board)
+                              (range 8 0 -1))]
+    (println (str rownum
+                  " |"
+                  (string/join (map (fn [piece]
+                                      (if (nil? piece)
+                                        "."
+                                        (:str piece)))
+                                    rank)))))
+  (println "   --------")
+  (println "   abcdefgh"))
+
 (defn print-game
   "Prints current state of the game.
 
@@ -248,7 +255,9 @@ and are indexes into the board data structure."
   {:board board
    :current-player :white
    :king-moved     #{}
-   :rook-moved     #{}})
+   :rook-moved     #{}
+   :check          nil
+   :checkmate      nil})
 
 (defn- prompt-move
   "Prints a message to stdout asking for the player's move, reads and returns a
@@ -287,7 +296,7 @@ and are indexes into the board data structure."
                          (and (= :black player) (= 4 row))
                          (cond (is-pawn? (inc row))
                                (inc row)
-                               
+
                                (and (is-pawn? (inc (inc row)))
                                     (nil? (piece-at board (inc row) col)))
                                (inc (inc row)))
@@ -409,7 +418,7 @@ and are indexes into the board data structure."
        (cond
         (> (count ps) 1)
         {:invalid true, :cause "Ambiguous move."}
-        
+
         (< (count ps) 1)
         {:invalid true, :cause "No piece can make this move."}
 
@@ -507,7 +516,54 @@ and are indexes into the board data structure."
        :add    [[kr kc (assoc king :row kr :col kc)]
                 [rr rc (assoc rook :row rr :col rc)]]})))
 
-(defn parse-eval-move
+(defn checkmate?
+  "Verifies is a game is in check mate."
+  ;; TODO - Finish me.
+  [board player]
+  false)
+
+(defn check?
+  "Verifies that a player's king is in check."
+  ;; TODO - Finish me.
+  [board player]
+  (let [king (first (filter (fn [p]
+                              (= :king (:kind p)))
+                            (player-pieces board player)))]
+    (square-attacked? board
+                      (other-player player)
+                      [(:row king)
+                       (:col king)])))
+
+(defn board-move
+  "Updates the board."
+  [board mv]
+  (letfn
+      [(remove-at [board removes]
+         (reduce (fn [b [r c]]
+                   (update-in b [r c] (fn [_] nil)))
+                 board
+                 removes))
+       (add-at [board adds]
+         (reduce (fn [b [r c p]]
+                   (update-in b [r c] (fn [_] p)))
+                 board
+                 adds))
+
+       (move [board mv]
+         (if-let [[[r1 c1] [r2 c2]] mv]
+           (let [p (assoc (piece-at board r1 c1)
+                     :row r2
+                     :col c2)]
+             (-> board
+                 (remove-at [[r1 c1]])
+                 (add-at    [[r2 c2 p]])))
+           board))]
+    (-> board
+        (remove-at (:remove mv))
+        (add-at    (:add mv))
+        (move      (:move mv)))))
+
+(defn parse-move
   "Parses a move command according to the Standard Algebraic Notation or coordinate notation
 
    Example of valid moves:
@@ -515,17 +571,11 @@ and are indexes into the board data structure."
    Bc6
    Nxf6
    O-O
-   e2g4
-
-   Query the result for:
-   :invalid - if the move was invalid
-   :move    - [[row-from,col-from], [row-to,col-to]] if a piece is to be moved
-   :remove  - seq of [row,col] with the coordinates of the pieces to be removed
-   :add     - seq of [row,col,piece] with the coordinates of pieces to add."
+   e2g4"
   [s game]
   (let [re-pawn      #"([a-h][1-8])"
         re-pawn-cap  #"([a-h])x([a-h][1-8])(\(ep\))?"
-        re-piece     #"([BKNR])([a-h]?)(x?)([a-h][1-8])"
+        re-piece     #"([BKNRQ])([a-h]?)(x?)([a-h][1-8])"
         re-coord     #"([a-h][1-8])([a-h][1-8])"
         board  (:board game)
         player (:current-player game)
@@ -574,43 +624,28 @@ and are indexes into the board data structure."
       :parse-error true
       :input       s})))
 
-(defn checkmate?
-  "Verifies is a game is in check mate."
-  ;; TODO - Finish me.
-  [game])
-(defn check?
-  "Verifies that a king is in check. "
-  ;; TODO - Finish me.
-  [game])
+(defn parse-eval-move
+  "Parses and evaluates a move.
 
-(defn board-move
-  "Updates the board."
-  [board mv]
-  (letfn
-      [(remove-at [board removes]
-         (reduce (fn [b [r c]]
-                   (update-in b [r c] (fn [_] nil)))
-                 board
-                 removes))
-       (add-at [board adds]
-         (reduce (fn [b [r c p]]
-                   (update-in b [r c] (fn [_] p)))
-                 board
-                 adds))
+   The result contains the keys:
+   :invalid - if the move was invalid
+   :move    - [[row-from,col-from], [row-to,col-to]] if a piece is to be moved
+   :remove  - seq of [row,col] with the coordinates of the pieces to be removed
+   :add     - seq of [row,col,piece] with the coordinates of pieces to add."
+  [s game]
+  (let [mv (parse-move s game)
+        board (:board game)
+        player (:current-player game)]
+    (cond
+     (:invalid mv)
+     mv
 
-       (move [board mv]
-         (if-let [[[r1 c1] [r2 c2]] mv]
-           (let [p (assoc (piece-at board r1 c1)
-                     :row r2
-                     :col c2)]
-             (-> board
-                 (remove-at [[r1 c1]])
-                 (add-at    [[r2 c2 p]])))
-           board))]
-    (-> board
-        (remove-at (:remove mv))
-        (add-at    (:add mv))
-        (move      (:move mv)))))
+     ;; a move is only valid if it does not leave player in check
+     (check? (board-move board mv) player)
+     {:invalid true, :cause (str player " is in check.")}
+
+     :else    ; valid move
+     mv)))
 
 (defn- move
   "Updates the game state after a player moved."
@@ -640,11 +675,15 @@ and are indexes into the board data structure."
     ;; TODO - Verify king in check
     ;; TODO - Verify checkmate.
     (let [board (:board game)
-          b (board-move board mv)]
+          b (board-move board mv)
+          other-player (other-player (:current-player game))]
       (-> game
           (assoc
             :board b
-            :current-player (other-player (:current-player game)))
+            :current-player other-player
+            :check      (if (check? board other-player)
+                          other-player)
+            :checkmate  (checkmate? board other-player))
           (update-if :king-moved (king-moved? board mv))
           (update-if :rook-moved (rook-moved? board mv))))))
 
@@ -677,9 +716,12 @@ and are indexes into the board data structure."
           (let [mv (parse-eval-move str-mv game)]
             (if (:invalid mv)
               (if (:parse-error mv)
+                ;; parse error
                 (do (println (str "Cannot parse move: " (:input mv)))
                     (recur game))
 
+                ;; move is invalid according to rules.
+                ;; Example: try to move a bishop sideways
                 (do (println (str "Invalid move: " (:cause mv)))
                     (recur game)))
 

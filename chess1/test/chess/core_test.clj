@@ -72,14 +72,16 @@
   (testing ""
     (is (= (with-out-str (print-board chess.core/board))
            (clojure.string/join
-            (interleave ["rnbqkbnr"
-                         "pppppppp"
-                         "........"
-                         "........"
-                         "........"
-                         "........"
-                         "PPPPPPPP"
-                         "RNBQKBNR"]
+            (interleave ["8 |rnbqkbnr"
+                         "7 |pppppppp"
+                         "6 |........"
+                         "5 |........"
+                         "4 |........"
+                         "3 |........"
+                         "2 |PPPPPPPP"
+                         "1 |RNBQKBNR"
+                         "   --------"
+                         "   abcdefgh"]
                         (repeat \newline)))))))
 
 ;;
