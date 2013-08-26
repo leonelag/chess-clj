@@ -2,9 +2,6 @@
   (:gen-class)
   (:require [clojure.string :as string]))
 
-;; TODO - remove this
-(def debug println)
-
 ;; Utility functions
 (def not-nil? (complement nil?))
 
@@ -123,8 +120,8 @@ and are indexes into the board data structure."
                (case winner
                  :white "White"
                  :black "Black")
-               " wins.")
-      (println "Check.")))
+               " wins.\n")
+      (println "Check.\n")))
   (println))
 
 (def board
@@ -207,13 +204,14 @@ and are indexes into the board data structure."
 (defn square-attacked?
   "Whether a square is in check by a piece of informed player."
   [board player [row col]]
+    
   ;; checks over the square to find a piece is of the same color and kind as param
-  (let [is-piece-at? (fn [kinds sqs]
-                       (some (fn [[r c]]
-                               (if-let [piece (piece-at board r c)]
-                                 (and (= player (:color piece))
-                                      (kinds (:kind piece)))))
-                             sqs))]
+  (letfn [(is-piece-at? [kinds sqs]
+            (some (fn [[r c]]
+                    (if-let [piece (piece-at board r c)]
+                      (and (= player (:color piece))
+                           (kinds (:kind piece)))))
+                  sqs))]
     (or
      ;; square in check by a pawn
      (let [pawn-row (case player
@@ -235,11 +233,11 @@ and are indexes into the board data structure."
           (filter not-nil?)                     ; some diagonals do not have pieces
           (is-piece-at? #{:queen :bishop}))
 
-     (->> (parallels row col)                   ; in each row and col
+     (->> (parallels row col)                   ; in each square in same row and col
           (map #(first (drop-while              ; get the first piece
                         (fn [[r c]] (nil? (piece-at board r c)))
                         %)))
-          (filter not-nil?)                     ; some do not have pieces
+ ;         (filter not-nil?)                     ; some do not have pieces
           (is-piece-at? #{:queen :rook}))
 
      ;; square in check by king
@@ -524,7 +522,6 @@ and are indexes into the board data structure."
 
 (defn check?
   "Verifies that a player's king is in check."
-  ;; TODO - Finish me.
   [board player]
   (let [king (first (filter (fn [p]
                               (= :king (:kind p)))
