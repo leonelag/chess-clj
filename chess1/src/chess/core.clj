@@ -204,7 +204,7 @@ and are indexes into the board data structure."
 (defn square-attacked?
   "Whether a square is in check by a piece of informed player."
   [board player [row col]]
-    
+
   ;; checks over the square to find a piece is of the same color and kind as param
   (letfn [(is-piece-at? [kinds sqs]
             (some (fn [[r c]]
@@ -255,7 +255,9 @@ and are indexes into the board data structure."
    :king-moved     #{}
    :rook-moved     #{}
    :check          nil
-   :checkmate      nil})
+   :checkmate      nil
+   :previous       nil   ; the previous state of the game
+   :history        []})  ; stack: the history of moves.
 
 (defn- prompt-move
   "Prints a message to stdout asking for the player's move, reads and returns a
@@ -641,8 +643,8 @@ and are indexes into the board data structure."
      (check? (board-move board mv) player)
      {:invalid true, :cause (str player " is in check.")}
 
-     :else    ; valid move
-     mv)))
+     :else    ; valid move. Assoc the input for history tracking.
+     (assoc mv :str s))))
 
 (defn- move
   "Updates the game state after a player moved."
@@ -680,9 +682,29 @@ and are indexes into the board data structure."
             :current-player other-player
             :check      (if (check? board other-player)
                           other-player)
-            :checkmate  (checkmate? board other-player))
+            :checkmate  (checkmate? board other-player)
+            :history    (cons (:str mv) (:history game))
+            :previous   game)
           (update-if :king-moved (king-moved? board mv))
           (update-if :rook-moved (rook-moved? board mv))))))
+
+(defn undo
+  "Reverts the board to the move before, so the player can try again."
+  [game]
+  (if-let [p (:previous game)]
+    p
+    game))
+
+(defn history
+  "Returns the sequence of moves of the players up to the current state.
+
+   Moves are returned as a seq of pairs (w,b) with the moves of the white and black players.
+
+   Because white plays first, the last element may have a single element instead of a pair."
+  [game]
+  (let [pad nil]                        ; used to maybe pad the last pair.
+    (partition 2 2 nil
+               (reverse (:history game)))))
 
 (defn -main
   "Starts a game of chess, alternately asking for players' moves on the command
@@ -701,12 +723,31 @@ and are indexes into the board data structure."
           ; end game, no recur.
           (println "Goodbye !")
 
-          "undo"
-          (do (println "undo (not implemented)")
+          "help"
+          (do (doseq [line ["Available commands: "
+                            " <move> a move in the Standard Notation."
+                            "  example: Nc6, e4, 0-0, Qxe4"
+                            " undo: reverts the latest move, so the player can try again."
+                            " history: prints the history of moves."]]
+                (println line))
+              (println)
               (recur game))
 
+          "undo"
+          (do (let [u (undo game)]
+                (if (= game u)
+                  (println "First move in history."))
+                (recur u)))
+
           "history"
-          (do (println "history (not implemented)")
+          (do (let [h (history game)]
+                (if (empty? h)
+                  (println "History is empty !")
+                  (do (doseq [[white black] h]
+                        (print white)
+                        (when black
+                          (println " " black)))
+                      (println))))
               (recur game))
 
           ;; Not a command. Parse as a game move.
