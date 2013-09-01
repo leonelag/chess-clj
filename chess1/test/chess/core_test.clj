@@ -263,3 +263,115 @@
             :kind  :queen}
            (select-keys (piece-at b2 7 3)
                         [:kind :color])))))
+
+(deftest test-possible-moves
+  (testing "Test possible moves"
+    ;; moves for white
+    (is (= (set (concat
+                 ;; on the starting board, all pawns can move to row 2 or 3
+                 (flatten (for [col (range 8)]
+                            [{:move [[1 col] [2 col]]}
+                             {:move [[1 col] [3 col]]}]))
+
+                 ;; knights
+                 [{:move [[0 1] [2 0]]}
+                  {:move [[0 2] [2 2]]}
+                  {:move [[0 6] [2 5]]}
+                  {:move [[0 6] [2 7]]}]))
+           (set (possible-moves (new-game)
+                                :white))))
+
+    ;; moves for black after white has played e4
+    (let [game (-> (new-game)
+                   (move {:move [[1 4] [3 4]]}))]
+      (is (= (set (concat
+                   ;; black pawns
+                   (flatten (for [col (range 8)]
+                              [{:move [[6 col] [5 col]]}
+                               {:move [[6 col] [4 col]]}]))
+                   ;; black knights
+                   [{:move [[7 1] [5 0]]}
+                    {:move [[7 1] [5 2]]}
+                    {:move [[7 6] [5 5]]}
+                    {:move [[7 6] [5 7]]}]))
+             (set (possible-moves game :black)))))))
+
+(deftest test-check?
+  (testing "Test function check?"
+    (let [board (parse-board ["r.bqkbnr"
+                              "ppp..Qpp"
+                              "..np...."
+                              "....p..."
+                              "..B.P..."
+                              "........"
+                              "PPPP.PPP"
+                              "RNB.K.NR"])]
+      (is (check? board :black))
+      (is (not (check? board :white))))))
+
+(deftest test-checkmate?
+  (testing "Test function checkmate?"
+    ;; scholar's mate
+    ;; http://en.wikipedia.org/wiki/Scholar%27s_mate
+    (let [scholar (parse-board ["r.bqkb.r"
+                                "pppp.Qpp"
+                                "..n..n.."
+                                "....p..."
+                                "..B.P..."
+                                "........"
+                                "PPPP.PPP"
+                                "RNB.K.NR"])]
+      (is (check? scholar :black))
+      (is (not (check? scholar :white)))
+      (is (checkmate? scholar :black))
+      (is (not (checkmate? scholar :white))))
+
+    ;; Fool's mate
+    ;; http://en.wikipedia.org/wiki/Fool%27s_mate
+    (let [fools (parse-board ["rnb.kbnr"
+                              "pppp.ppp"
+                              "........"
+                              "....p..."
+                              "......Pq"
+                              ".....P.."
+                              "PPPPP..P"
+                              "RNBQKBNR"])]
+      (is (check? fools :white))
+      (is (checkmate? fools :white))
+      (is (check? fools :black))
+      (is (checkmate? fools :black)))))
+
+(deftest test-possible-moves-piece
+  (testing "Test function possible-moves"
+    (let [board (parse-board ["rnbqk.n."
+                              "ppp...pP"
+                              "...b...."
+                              "...ppp.."
+                              "..P.P..."
+                              "P.N....."
+                              ".P.P.PP."
+                              "R.BQKBNR"])]
+      ;; pawns
+      (is (= [{:move [[2 0] [3 0]]}]
+             (possible-moves-piece (piece-at board 2 0) board)))
+      (is (= [{:move [[1 1] [2 1]]}
+              {:move [[1 1] [3 1]]}]
+             (possible-moves-piece (piece-at board 1 1) board)))
+      (is (= [{:move [[3 2] [4 2]]}
+              {:move [[3 2] [4 3]]}]
+             (possible-moves-piece (piece-at board 3 2) board)))
+      (is (= [{:move [[1 3] [2 3]]}
+              {:move [[1 3] [3 3]]}]
+             (possible-moves-piece (piece-at board 1 3) board)))
+      (is (= [{:move [[3 4] [4 3]]}
+              {:move [[3 4] [4 5]]}]
+             (possible-moves-piece (piece-at board 3 4) board)))
+      (is (= [{:move [[1 5] [2 5]]}
+              {:move [[1 5] [3 5]]}]
+             (possible-moves-piece (piece-at board 1 5) board)))
+      (is (= [{:move [[1 6] [2 6]]}
+              {:move [[1 6] [3 6]]}]
+             (possible-moves-piece (piece-at board 1 6) board)))
+      (is (= [{:move [[6 7] [7 7]]}
+              {:move [[6 7] [7 6]]}]
+             (possible-moves-piece (piece-at board 6 7) board))))))

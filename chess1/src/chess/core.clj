@@ -3,7 +3,7 @@
   (:require [clojure.string :as string]))
 
 ;; Utility functions
-(def not-nil? (complement nil?))
+(def not-nil? identity)
 
 (defn file
   "Converts a file character (think 'column') to an int index on the chess board.
@@ -153,8 +153,8 @@ and are indexes into the board data structure."
               pieces
               idxs)
          (filter (fn [p]
-                   (and (not-nil? p)
-                        (= player (:color p))))))))
+                   (if [p]
+                     (= player (:color p))))))))
 
 (defn knight-squares
   "The squares that a knight at (row,col) can move to."
@@ -244,7 +244,7 @@ and are indexes into the board data structure."
      (is-piece-at? #{:king}
                    (around row col)))))
 
-(defn- new-game
+(defn new-game
   "Creates a new match of chess.
 
    A game object holds information about the game, such as the current player
@@ -379,7 +379,7 @@ and are indexes into the board data structure."
   "Whether there is a piece in the path between two squares"
   [board [r1 c1] [r2 c2]]
   (some (fn [[r c]]
-          (not-nil? (piece-at board r c)))
+          (piece-at board r c))
         (path [r1 c1] [r2 c2])))
 
 (defn piece-move
@@ -402,7 +402,7 @@ and are indexes into the board data structure."
                  :queen  (mapcat concat
                                  (diagonals row col)
                                  (parallels row col))
-                 :kind   (around row col))
+                 :king   (around row col))
            ps (->> sqs
                    (map (fn [[r c]]
                           (piece-at board r c)))
@@ -516,11 +516,118 @@ and are indexes into the board data structure."
        :add    [[kr kc (assoc king :row kr :col kc)]
                 [rr rc (assoc rook :row rr :col rc)]]})))
 
+(defn empty-at?
+  [board [row col]]
+  (not (piece-at board row col)))
+(defn enemy-at?
+  [board player [row col]]
+  (if-let [p (piece-at board row col)]
+    (not= player (:color p))))
+(defn take-until
+  "The seq of x for which (pred x) is false, stops at the first x for
+   which (pred x) is true, includes it."
+  [pred [x & xs]]
+  (lazy-seq
+   (when x
+     (if (pred x)
+       [x]
+       (cons x (take-until pred xs))))))
+(defn as-move
+  [from]
+  (fn [to]
+    {:move [from to]}))
+
+(defmulti possible-moves-piece
+  "All moves a piece can make."
+  (fn [p board]
+    (:kind p)))
+(defmethod possible-moves-piece
+  :pawn
+  [pawn board]
+  (let [row (:row pawn), col (:col pawn), player (:color pawn)
+        [dr, start] (case player
+                      :white [1   1]
+                      :black [-1  6])
+        fwd      [(+ row dr) col]        ; move forward
+        two-rows [(+ row dr dr) col]     ; move two squares on first move
+        west     [(+ row dr) (dec col)]  ; capture on west
+        east     [(+ row dr) (inc col)]] ; capture on east
+    (->> [(if (empty-at? board fwd) fwd)
+          (if (and (= start row)
+                   (empty-at? board two-rows))
+            two-rows)
+          (if (and (within-board west)
+                   (enemy-at? board player west))
+            west)
+          (if (and (within-board east)
+                   (enemy-at? board player east))
+            east)]
+         (filter identity)
+         (map (as-move [row col])))))
+
+(defmethod possible-moves-piece
+  :knight
+  [knight board]
+  (let [row (:row knight), col (:col knight), player (:color knight)]
+    (->> (knight-squares row col)
+         (filter (fn [sq]
+                   (and (within-board sq)
+                        (or (empty-at? board sq)
+                            (enemy-at? board sq)))))
+         (map (as-move [row col])))))
+
+(defmethod possible-moves-piece
+  :bishop
+  [bishop board]
+  (let [row (:row bishop), col (:col bishop), player (:color bishop)]
+    (->> (diagonals row col)
+         (mapcat #(take-until (fn [sq]
+                                (enemy-at? board sq))
+                              %))
+         (map (as-move [row col])))))
+(defmethod possible-moves-piece
+  :rook
+  [rook board]
+  (let [row (:row rook), col (:col rook), player (:color rook)]
+    (->> (parallels row col)
+         (mapcat #(take-until (fn [sq]
+                            (enemy-at? board sq))
+                              %))
+         (map (as-move [row col])))))
+(defmethod possible-moves-piece
+  :queen
+  [queen board]
+  (let [row (:row queen), col (:col queen), player (:color queen)]
+    (->> (concat (parallels row col)
+                 (diagonals row col))
+         (mapcat #(take-until (fn [sq]
+                                (enemy-at? board sq))
+                              %))
+         (map (as-move [row col])))))
+(defmethod possible-moves-piece
+  :king
+  [king board]
+  (let [row (:row king), col (:col king), player (:color king)]
+    (->> (around row col)
+         (map (as-move [row col])))))
+(defn possible-moves
+  "Seq of possible moves for a player."
+  [game player]
+  ;; TODO - consider castling
+  (let [board (:board game)]
+    (for [piece (player-pieces player)]
+      (filter (fn [[r c]]
+                (let [p (piece-at board r c)]
+                  (or (nil? p)
+                      (not= player (:color p)))))
+              (possible-moves-piece piece)))))
+
 (defn checkmate?
-  "Verifies is a game is in check mate."
+  "Verifies whether a player has been checkmated."
   ;; TODO - Finish me.
   [board player]
-  false)
+
+  )
 
 (defn check?
   "Verifies that a player's king is in check."
@@ -646,7 +753,7 @@ and are indexes into the board data structure."
      :else    ; valid move. Assoc the input for history tracking.
      (assoc mv :str s))))
 
-(defn- move
+(defn move
   "Updates the game state after a player moved."
   [game mv]
   (letfn [(king-moved? [board mv]
