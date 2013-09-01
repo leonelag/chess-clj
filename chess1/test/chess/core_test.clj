@@ -141,7 +141,7 @@
     (is (= [2 2] (parse-square "c3")))
     (is (= [2 5] (parse-square "f3")))
     (is (= [3 4] (parse-square "e4")))
-    (is (= [4 4] (parse-square "e5"))))) 
+    (is (= [4 4] (parse-square "e5")))))
 
 (deftest test-knight-squares
   (testing "Testing knight-squares"
@@ -268,10 +268,13 @@
   (testing "Test possible moves"
     ;; moves for white
     (is (= (set (concat
-                 ;; on the starting board, all pawns can move to row 2 or 3
-                 (flatten (for [col (range 8)]
-                            [{:move [[1 col] [2 col]]}
-                             {:move [[1 col] [3 col]]}]))
+                 ;; pawns
+                 (apply concat
+                        ;; on the starting board, all pawns can move to row 2 or 3
+
+                        (for [col (range 8)]
+                          [{:move [[1 col] [2 col]]}
+                           {:move [[1 col] [3 col]]}]))
 
                  ;; knights
                  [{:move [[0 1] [2 0]]}
@@ -286,9 +289,10 @@
                    (move {:move [[1 4] [3 4]]}))]
       (is (= (set (concat
                    ;; black pawns
-                   (flatten (for [col (range 8)]
-                              [{:move [[6 col] [5 col]]}
-                               {:move [[6 col] [4 col]]}]))
+                   (apply concat
+                          (for [col (range 8)]
+                            [{:move [[6 col] [5 col]]}
+                             {:move [[6 col] [4 col]]}]))
                    ;; black knights
                    [{:move [[7 1] [5 0]]}
                     {:move [[7 1] [5 2]]}
@@ -374,4 +378,28 @@
              (possible-moves-piece (piece-at board 1 6) board)))
       (is (= [{:move [[6 7] [7 7]]}
               {:move [[6 7] [7 6]]}]
-             (possible-moves-piece (piece-at board 6 7) board))))))
+             (possible-moves-piece (piece-at board 6 7) board)))
+      ;; knight
+      (is (= (set [{:move [[2 2] [1 0]]}
+                   {:move [[2 2] [0 1]]}
+                   {:move [[2 2] [1 4]]}
+                   {:move [[2 2] [4 3]]}
+                   {:move [[2 2] [4 1]]}
+                   {:move [[2 2] [3 0]]}])
+             (set (possible-moves-piece (piece-at board 2 2)
+                                        board))))
+      (is (= (set [{:move [[7 1] [5 0]]}
+                   {:move [[7 1] [5 2]]}
+                   {:move [[7 1] [6 3]]}])
+             (set (possible-moves-piece (piece-at board 7 1)
+                                        board))))
+      (is (= (set [{:move [[7 6] [6 4]]}
+                   {:move [[7 6] [5 5]]}
+                   {:move [[7 6] [5 7]]}])
+             (set (possible-moves-piece (piece-at board 7 6)
+                                        board))))
+      (is (= (set [{:move [[0 6] [1 4]]}
+                   {:move [[0 6] [2 5]]}
+                   {:move [[0 6] [2 7]]}])
+             (set (possible-moves-piece (piece-at board 0 6)
+                                        board)))))))

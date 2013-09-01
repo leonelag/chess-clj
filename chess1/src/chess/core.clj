@@ -571,9 +571,8 @@ and are indexes into the board data structure."
   (let [row (:row knight), col (:col knight), player (:color knight)]
     (->> (knight-squares row col)
          (filter (fn [sq]
-                   (and (within-board sq)
-                        (or (empty-at? board sq)
-                            (enemy-at? board sq)))))
+                   (or (empty-at? board sq)
+                       (enemy-at? board player sq))))
          (map (as-move [row col])))))
 
 (defmethod possible-moves-piece
