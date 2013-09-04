@@ -278,7 +278,7 @@
 
                  ;; knights
                  [{:move [[0 1] [2 0]]}
-                  {:move [[0 2] [2 2]]}
+                  {:move [[0 1] [2 2]]}
                   {:move [[0 6] [2 5]]}
                   {:move [[0 6] [2 7]]}]))
            (set (possible-moves (new-game)
@@ -402,4 +402,53 @@
                    {:move [[0 6] [2 5]]}
                    {:move [[0 6] [2 7]]}])
              (set (possible-moves-piece (piece-at board 0 6)
-                                        board)))))))
+                                        board))))
+      ;; rook
+      (is (= (set [{:move [[0 0] [1 0]]}
+                   {:move [[0 0] [0 1]]}])
+             (set (possible-moves-piece (piece-at board 0 0)
+                                        board))))
+      (is (= [{:move [[0 7] [1 7]]}
+              {:move [[0 7] [2 7]]}
+              {:move [[0 7] [3 7]]}
+              {:move [[0 7] [4 7]]}
+              {:move [[0 7] [5 7]]}]
+             (possible-moves-piece (piece-at board 0 7)
+                                   board)))
+      ;; bishop
+      (is (= [{:move [[0 5] [1 4]]}
+              {:move [[0 5] [2 3]]}]
+             (possible-moves-piece (piece-at board 0 5)
+                                   board)))
+      (is (= (set [{:move [[5 3] [6 4]]}
+                   {:move [[5 3] [7 5]]}
+                   {:move [[5 3] [4 2]]}
+                   {:move [[5 3] [3 1]]}
+                   {:move [[5 3] [2 0]]}])
+             (set (possible-moves-piece (piece-at board 5 3)
+                                        board))))
+      ;; queens
+      (is (= (set [{:move [[0 3] [1 4]]}
+                   {:move [[0 3] [2 5]]}
+                   {:move [[0 3] [3 6]]}
+                   {:move [[0 3] [4 7]]}
+                   {:move [[0 3] [1 2]]}
+                   {:move [[0 3] [2 1]]}
+                   {:move [[0 3] [3 0]]}])
+             (set (possible-moves-piece (piece-at board 0 3)
+                                        board))))
+      (is (= (set [{:move [[7 3] [6 3]]}
+                   {:move [[7 3] [6 4]]}
+                   {:move [[7 3] [5 5]]}
+                   {:move [[7 3] [4 6]]}
+                   {:move [[7 3] [3 7]]}])
+             (set (possible-moves-piece (piece-at board 7 3)
+                                        board))))
+      ;; kings
+      (is (= [{:move [[0 4] [1 4]]}]
+             (possible-moves-piece (piece-at board 0 4) board)))
+      (is (= (set [{:move [[7 4] [6 3]]}
+                   {:move [[7 4] [6 4]]}
+                   {:move [[7 4] [6 5]]}
+                   {:move [[7 4] [7 5]]}])
+             (set (possible-moves-piece (piece-at board 7 4) board)))))))

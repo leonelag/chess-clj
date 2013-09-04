@@ -523,6 +523,10 @@ and are indexes into the board data structure."
   [board player [row col]]
   (if-let [p (piece-at board row col)]
     (not= player (:color p))))
+(defn friend-at?
+  [board player [row col]]
+  (if-let [p (piece-at board row col)]
+    (= player (:color p))))
 (defn take-until
   "The seq of x for which (pred x) is false, stops at the first x for
    which (pred x) is true, includes it."
@@ -575,51 +579,58 @@ and are indexes into the board data structure."
                        (enemy-at? board player sq))))
          (map (as-move [row col])))))
 
+(defn until-enemy
+  [board player sqs]
+  (let [xs (take-until #(not (empty-at? board %))
+                       sqs)]
+    (if-let [sq (last xs)]
+      (if (friend-at? board player sq)
+        (butlast xs)
+        xs)
+      xs)))
+
 (defmethod possible-moves-piece
   :bishop
   [bishop board]
   (let [row (:row bishop), col (:col bishop), player (:color bishop)]
     (->> (diagonals row col)
-         (mapcat #(take-until (fn [sq]
-                                (enemy-at? board sq))
-                              %))
+         (mapcat #(until-enemy board player %))
          (map (as-move [row col])))))
+
 (defmethod possible-moves-piece
   :rook
   [rook board]
   (let [row (:row rook), col (:col rook), player (:color rook)]
     (->> (parallels row col)
-         (mapcat #(take-until (fn [sq]
-                            (enemy-at? board sq))
-                              %))
+         (mapcat #(until-enemy board player %))
          (map (as-move [row col])))))
+
 (defmethod possible-moves-piece
   :queen
   [queen board]
   (let [row (:row queen), col (:col queen), player (:color queen)]
-    (->> (concat (parallels row col)
-                 (diagonals row col))
-         (mapcat #(take-until (fn [sq]
-                                (enemy-at? board sq))
-                              %))
+    (->> (concat (diagonals row col)
+                  (parallels row col))
+         (mapcat #(until-enemy board player %))
          (map (as-move [row col])))))
+
 (defmethod possible-moves-piece
   :king
   [king board]
   (let [row (:row king), col (:col king), player (:color king)]
     (->> (around row col)
+         (filter #(or (empty-at? board %)
+                      (enemy-at? board player %)))
          (map (as-move [row col])))))
+
 (defn possible-moves
   "Seq of possible moves for a player."
   [game player]
   ;; TODO - consider castling
   (let [board (:board game)]
-    (for [piece (player-pieces player)]
-      (filter (fn [[r c]]
-                (let [p (piece-at board r c)]
-                  (or (nil? p)
-                      (not= player (:color p)))))
-              (possible-moves-piece piece)))))
+    (mapcat (fn [piece]
+              (possible-moves-piece piece board))
+            (player-pieces board player))))
 
 (defn checkmate?
   "Verifies whether a player has been checkmated."
