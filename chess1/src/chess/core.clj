@@ -228,14 +228,14 @@ and are indexes into the board data structure."
      ;; look in diagonals for the first piece, see if it's queen or bishop
      (->> (diagonals row col)                   ; in each diagonal
           (map #(first (drop-while              ; get the first piece
-                        (fn [[r c]] (nil? (piece-at board r c)))
+                        (fn [[r c]] (not (piece-at board r c)))
                         %)))
           (filter not-nil?)                     ; some diagonals do not have pieces
           (is-piece-at? #{:queen :bishop}))
 
      (->> (parallels row col)                   ; in each square in same row and col
           (map #(first (drop-while              ; get the first piece
-                        (fn [[r c]] (nil? (piece-at board r c)))
+                        (fn [[r c]] (not (piece-at board r c)))
                         %)))
  ;         (filter not-nil?)                     ; some do not have pieces
           (is-piece-at? #{:queen :rook}))
@@ -444,22 +444,22 @@ and are indexes into the board data structure."
                 [player side])
      "Rook moved earlier in the game."
 
-     (let [[row col] (parse-square (case player
-                                     :white "e1"
-                                     :black "e8"))]
+     (let [sq (parse-square (case player
+                              :white "e1"
+                              :black "e8"))]
        (square-attacked? board
-                      other-player
-                      row col))
+                         other
+                         sq))
      "The king is in check."
 
-     (let [[row col] (parse-square (case [player side]
-                                     [:white :king]  "g1"
-                                     [:white :queen] "c1"
-                                     [:black :king]  "g8"
-                                     [:black :queen] "c8"))]
+     (let [sq (parse-square (case [player side]
+                              [:white :king]  "g1"
+                              [:white :queen] "c1"
+                              [:black :king]  "g8"
+                              [:black :queen] "c8"))]
        (square-attacked? board
-                      other-player
-                      row col))
+                         other
+                         sq))
      "The king would be in check after castling."
 
      (let [sqs (case [player side]    ; squares between king and rook.
@@ -472,12 +472,12 @@ and are indexes into the board data structure."
              sqs))
      "There are pieces between the king and rook."
 
-     (let [[row col] (parse-square (case [player side]
-                                     [:white :king]  "f1"
-                                     [:white :queen] "d1"
-                                     [:black :king]  "f8"
-                                     [:black :queen] "d8"))]
-       (square-attacked? board other-player row col))
+     (let [sq (parse-square (case [player side]
+                              [:white :king]  "f1"
+                              [:white :queen] "d1"
+                              [:black :king]  "f8"
+                              [:black :queen] "d8"))]
+       (square-attacked? board other sq))
      "The king moves through a square that is attacked by a piece of the opponent."
 
 
@@ -625,30 +625,10 @@ and are indexes into the board data structure."
 
 (defn possible-moves
   "Seq of possible moves for a player."
-  [game player]
-  ;; TODO - consider castling
-  (let [board (:board game)]
-    (mapcat (fn [piece]
-              (possible-moves-piece piece board))
-            (player-pieces board player))))
-
-(defn checkmate?
-  "Verifies whether a player has been checkmated."
-  ;; TODO - Finish me.
   [board player]
-
-  )
-
-(defn check?
-  "Verifies that a player's king is in check."
-  [board player]
-  (let [king (first (filter (fn [p]
-                              (= :king (:kind p)))
-                            (player-pieces board player)))]
-    (square-attacked? board
-                      (other-player player)
-                      [(:row king)
-                       (:col king)])))
+  (mapcat (fn [piece]
+            (possible-moves-piece piece board))
+          (player-pieces board player)))
 
 (defn board-move
   "Updates the board."
@@ -678,6 +658,24 @@ and are indexes into the board data structure."
         (remove-at (:remove mv))
         (add-at    (:add mv))
         (move      (:move mv)))))
+
+(defn check?
+  "Verifies that a player's king is in check."
+  [board player]
+  (let [king (first (filter (fn [p]
+                              (= :king (:kind p)))
+                            (player-pieces board player)))]
+    (square-attacked? board
+                      (other-player player)
+                      [(:row king)
+                       (:col king)])))
+
+(defn checkmate?
+  "Verifies whether the player has been checkmated."
+  [board player]
+  (every? #(check? (board-move board %)
+                   player)
+          (possible-moves board player)))
 
 (defn parse-move
   "Parses a move command according to the Standard Algebraic Notation or coordinate notation

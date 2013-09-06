@@ -281,7 +281,7 @@
                   {:move [[0 1] [2 2]]}
                   {:move [[0 6] [2 5]]}
                   {:move [[0 6] [2 7]]}]))
-           (set (possible-moves (new-game)
+           (set (possible-moves (:board (new-game))
                                 :white))))
 
     ;; moves for black after white has played e4
@@ -298,7 +298,7 @@
                     {:move [[7 1] [5 2]]}
                     {:move [[7 6] [5 5]]}
                     {:move [[7 6] [5 7]]}]))
-             (set (possible-moves game :black)))))))
+             (set (possible-moves (:board game) :black)))))))
 
 (deftest test-check?
   (testing "Test function check?"
@@ -326,8 +326,8 @@
                                 "PPPP.PPP"
                                 "RNB.K.NR"])]
       (is (check? scholar :black))
-      (is (not (check? scholar :white)))
       (is (checkmate? scholar :black))
+      (is (not (check? scholar :white)))
       (is (not (checkmate? scholar :white))))
 
     ;; Fool's mate
@@ -342,8 +342,8 @@
                               "RNBQKBNR"])]
       (is (check? fools :white))
       (is (checkmate? fools :white))
-      (is (check? fools :black))
-      (is (checkmate? fools :black)))))
+      (is (not (check? fools :black)))
+      (is (not (checkmate? fools :black))))))
 
 (deftest test-possible-moves-piece
   (testing "Test function possible-moves"
