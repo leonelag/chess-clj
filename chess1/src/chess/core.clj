@@ -782,7 +782,7 @@ and are indexes into the board data structure."
           (update-if [m key val]
             ;; updates m with val only if val is true; else returns m untouched.
             (if val
-              (update-in m key #(conj % val))
+              (update-in m [key] #(conj % val))
               m))]
 
     ;; TODO - Verify en passant
