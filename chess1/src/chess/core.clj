@@ -365,8 +365,8 @@ and are indexes into the board data structure."
         dc (sgn (- c2 c1))]
     (take-while
      (fn [[r c]]
-       (and (not= r r2)
-            (not= c c2)))
+       (or (not= r r2)
+           (not= c c2)))
      (drop 1
            (iterate (fn [[r c]]
                       [(+ r dr) (+ c dc)])
