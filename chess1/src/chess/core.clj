@@ -2,9 +2,6 @@
   (:gen-class)
   (:require [clojure.string :as string]))
 
-;; Utility functions
-(def not-nil? identity)
-
 (defn file
   "Converts a file character (think 'column') to an int index on the chess board.
 
@@ -230,14 +227,14 @@ and are indexes into the board data structure."
           (map #(first (drop-while              ; get the first piece
                         (fn [[r c]] (not (piece-at board r c)))
                         %)))
-          (filter not-nil?)                     ; some diagonals do not have pieces
+          (filter identity)                     ; some diagonals do not have pieces
           (is-piece-at? #{:queen :bishop}))
 
      (->> (parallels row col)                   ; in each square in same row and col
           (map #(first (drop-while              ; get the first piece
                         (fn [[r c]] (not (piece-at board r c)))
                         %)))
- ;         (filter not-nil?)                     ; some do not have pieces
+          (filter identity)                     ; some rows and cols do not have pieces
           (is-piece-at? #{:queen :rook}))
 
      ;; square in check by king
@@ -407,7 +404,7 @@ and are indexes into the board data structure."
                    (map (fn [[r c]]
                           (piece-at board r c)))
                    (filter (fn [p]
-                             (and (not-nil? p)
+                             (and p
                                   (= kind (:kind p))
                                   (= player (:color p))
                                   (or
