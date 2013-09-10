@@ -2,9 +2,18 @@
   (:use compojure.core)
   (:require [compojure.handler  :as handler]
             [compojure.route    :as route]
-            [ring.util.response :as resp]))
+            [ring.util.response :as resp]
+            [ring.middleware.params :as rmw-p]))
 
 (defroutes app-routes
+  (POST "/login" {params       :params
+                  form-params  :form-params
+                  bd           :body}
+        {:status 200
+         :content-type "text/plain"
+         :body (str "p: [" params "]"
+                    "f: [" form-params "]"
+                    "bd: [" bd "]")})
   (GET "/hello" [] "Hello World")
   (GET "/" [] (resp/redirect "/index.html"))
   (route/resources "/")
@@ -12,6 +21,7 @@
 
 (def handler
   (handler/site app-routes))
+
 
 ;;
 ;; To start a web server from the repl.
@@ -27,6 +37,3 @@
 ;; (defn stop (.stop server))
 ;;; To stop the server
 ;; (.stop server)
-
-
-

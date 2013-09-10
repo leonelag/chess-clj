@@ -17,9 +17,9 @@
 
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
-        <script src="../../assets/js/html5shiv.js"></script>
-        <script src="../../assets/js/respond.min.js"></script>
-        <![endif]-->
+      <script src="../../assets/js/html5shiv.js"></script>
+      <script src="../../assets/js/respond.min.js"></script>
+    <![endif]-->
   </head>
 
   <body>
@@ -54,34 +54,49 @@
               </ul>
             </li>
           </ul>
-          <ul id="loginContainer" class="nav navbar-nav navbar-right">
-            <li><a href="login.html">Login</a></li>
-          </ul>
-        </div><!--/.nav-collapse -->
+        </div>
       </div>
 
       <div class="page-header">
         <h1>Chess! <small>An example application of a multiplayer chess engine written in Clojure.</small></h1>
       </div>
+
+      <div>
+        <h4>Login</h4>
+        <div class="alert alert-info">
+          <strong>Tip</strong>
+          <p>Some available user names:</p>
+          <ul>
+            <li>kasparov</li>
+            <li>deepblue</li>
+            <li>bobbyfischer</li>
+            <li>freddymercury</li>
+            <li>obelix</li>
+            <li>leonel</li>
+          </ul>
+        </div>
+        <form action="login" method="POST">
+          <table>
+            <tr>
+              <td><label for="username">Username:</label></td>
+              <td><input type="text" name="username" id="username" /></td>
+            </tr>
+            <tr>
+              <td><label for="password">Password:</label></td>
+              <td><input name="password" type="password" id="password" /></td>
+            </tr>
+          </table>
+          <input type="submit" value="Login" />
+        </form>
+      </div>
+
     </div> <!-- /container -->
 
 
-    <!-- Templates -->
-    <script type="text/x-handlebars" data-template-name="index"></script>
-    <script type="text/x-handlebars" data-template-name="loggedIn">
-      Welcome, {{view.name}}
-    </script>
-    <script type="text/x-handlebars" data-template-name="login">
-      <div class="container">
-        <h4>Login</h4>
-      </div>
-    </script>
-
-    <!-- Javascript -->
-    <script src="js/jquery-1.9.1.js"></script>
-    <script src="js/bootstrap.js"></script>
-    <script src="js/handlebars-1.0.0.js"></script>
-    <script src="js/ember-1.0.0.js"></script>
-    <script src="js/app.js"></script>
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="js/jquery-1.10.2.js"></script>
+    <script src="js/bootstrap.min.js"></script>
   </body>
 </html>
