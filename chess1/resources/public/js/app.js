@@ -24,13 +24,18 @@ var App = {
       console.log("UserLoggedIn: " + JSON.stringify(data, null, 2));
 
       var username = data.logged;
-      var loginLink = $('span#loginLink');
-      var logoutLink = $('span#logoutLink');
+      var loginLink  = $('li#loginLink'),
+          logoutLink = $('li#logoutLink'),
+          loginTxt   = $('li#loginTxt a');
       if (username) {
-        loginLink.text('Welcome, ' + username);
+        loginLink.hide();
+        loginTxt.text('Welcome, ' + username);
+        loginTxt.show();
         logoutLink.show();
       } else {
-        loginLink.text('Login');
+        loginLink.show();
+        loginTxt.text('');
+        loginTxt.hide('');
         logoutLink.hide();
       }
     });

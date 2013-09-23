@@ -51,12 +51,17 @@
               </ul>
             </li>
           </ul>
-          <ul id="loginContainer" class="nav navbar-nav navbar-right">
-            <li>
+          <ul class="nav navbar-nav navbar-right">
+            <li id="loginLink">
               <a href="#" class="dropdown-toggle" onclick="App.toggleLoginDialog()">
-                <span id="loginLink">Login</span><b class="caret"></b>
+                Login<b class="caret"></b>
               </a>
-              <span id="logoutLink" style="display: none"><a href="#" onclick="App.logout()">Logout</a></span>
+            </li>
+            <li id="loginTxt">
+              <a href="#"></a>
+            </li>
+            <li id="logoutLink" style="display: none">
+              <a href="#" onclick="App.logout()">Logout</a>
             </li>
           </ul>
         </div>
